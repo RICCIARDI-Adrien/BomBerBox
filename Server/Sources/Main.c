@@ -17,7 +17,7 @@ int main(int argc, char *argv[])
 {
 	char *String_IP_Address, *String_Map_File;
 	unsigned short Port;
-	int Expected_Players_Count;
+	int Expected_Players_Count, Map_Spawn_Points_Count;
 	
 	// Check parameters
 	if (argc != 5)
@@ -39,6 +39,14 @@ int main(int argc, char *argv[])
 	if (MapLoad(String_Map_File) != 0)
 	{
 		printf("[%s:%d] Error : failed to load the map.\n", __FUNCTION__, __LINE__);
+		return EXIT_FAILURE;
+	}
+	
+	// Are there enough spawn points for all players ?
+	Map_Spawn_Points_Count = MapGetSpawnPointsCount();
+	if (Map_Spawn_Points_Count < Expected_Players_Count)
+	{
+		printf("[%s:%d] Error : the map has only %d spawn points while %d players are expected.\n", __FUNCTION__, __LINE__, Map_Spawn_Points_Count, Expected_Players_Count);
 		return EXIT_FAILURE;
 	}
 	printf("Map successfully loaded.\n");

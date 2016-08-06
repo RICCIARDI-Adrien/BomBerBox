@@ -51,6 +51,11 @@ extern TMapCell Map[CONFIGURATION_MAP_ROWS_COUNT][CONFIGURATION_MAP_COLUMNS_COUN
  */
 int MapLoad(char *String_File_Path);
 
+/** Tell how many spawn points the map has.
+ * @return The spawn points amount.
+ */
+int MapGetSpawnPointsCount(void);
+
 // MapSpawnItem 
 
 #endif

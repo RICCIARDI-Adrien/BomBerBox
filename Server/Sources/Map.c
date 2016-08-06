@@ -14,6 +14,12 @@
 #include <unistd.h>
 
 //-------------------------------------------------------------------------------------------------
+// Private variables
+//-------------------------------------------------------------------------------------------------
+/** How many spawn points the last loaded map have. */
+static int Map_Spawn_Points_Count;
+
+//-------------------------------------------------------------------------------------------------
 // Public variables
 //-------------------------------------------------------------------------------------------------
 TMapCell Map[CONFIGURATION_MAP_ROWS_COUNT][CONFIGURATION_MAP_COLUMNS_COUNT];
@@ -33,6 +39,8 @@ int MapLoad(char *String_File_Path)
 		printf("[%s:%d] Error : could not open the map file (%s).\n", __FUNCTION__, __LINE__, strerror(errno));
 		return 1;
 	}
+	
+	Map_Spawn_Points_Count = 0;
 	
 	// Load the whole file content
 	for (Row = 0; Row < CONFIGURATION_MAP_ROWS_COUNT; Row++)
@@ -71,6 +79,7 @@ int MapLoad(char *String_File_Path)
 				case 'S':
 					Map[Row][Column].Content = MAP_CELL_CONTENT_PLAYER_SPAWN_POINT;
 					Map[Row][Column].Tile_ID = GAME_TILE_ID_EMPTY;
+					Map_Spawn_Points_Count++;
 					break;
 					
 				default:
@@ -83,4 +92,9 @@ int MapLoad(char *String_File_Path)
 	
 	close(File_Descriptor);
 	return 0;
+}
+
+int MapGetSpawnPointsCount(void)
+{
+	return Map_Spawn_Points_Count;
 }
