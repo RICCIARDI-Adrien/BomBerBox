@@ -16,7 +16,7 @@
 //-------------------------------------------------------------------------------------------------
 // Public variables
 //-------------------------------------------------------------------------------------------------
-TMapCellContent Map[CONFIGURATION_MAP_ROWS_COUNT][CONFIGURATION_MAP_COLUMNS_COUNT];
+TMapCell Map[CONFIGURATION_MAP_ROWS_COUNT][CONFIGURATION_MAP_COLUMNS_COUNT];
 
 //-------------------------------------------------------------------------------------------------
 // Public functions
@@ -53,14 +53,24 @@ int MapLoad(char *String_File_Path)
 			// Is the character allowed ?
 			switch (Character)
 			{
-				case MAP_CELL_CONTENT_EMPTY:
-				case MAP_CELL_CONTENT_WALL:
-				case MAP_CELL_CONTENT_DESTRUCTIBLE_OBSTACLE:
-				case MAP_CELL_CONTENT_PLAYER_SPAWN_POINT:
-				case MAP_CELL_CONTENT_ITEM_GHOST:
-				case MAP_CELL_CONTENT_ITEM_SHIELD:
-				case MAP_CELL_CONTENT_ITEM_POWER_UP:
-					Map[Row][Column] = (TMapCellContent) Character;
+				case ' ':
+					Map[Row][Column].Content = MAP_CELL_CONTENT_EMPTY;
+					Map[Row][Column].Tile_ID = GAME_TILE_ID_EMPTY;
+					break;
+					
+				case 'W':
+					Map[Row][Column].Content = MAP_CELL_CONTENT_WALL;
+					Map[Row][Column].Tile_ID = GAME_TILE_ID_WALL;
+					break;
+				
+				case 'D':
+					Map[Row][Column].Content = MAP_CELL_CONTENT_DESTRUCTIBLE_OBSTACLE;
+					Map[Row][Column].Tile_ID = GAME_TILE_ID_DESTRUCTIBLE_OBSTACLE;
+					break;
+					
+				case 'S':
+					Map[Row][Column].Content = MAP_CELL_CONTENT_PLAYER_SPAWN_POINT;
+					Map[Row][Column].Tile_ID = GAME_TILE_ID_EMPTY;
 					break;
 					
 				default:
@@ -68,7 +78,6 @@ int MapLoad(char *String_File_Path)
 					close(File_Descriptor);
 					return 1;
 			}
-
 		}
 	}
 	

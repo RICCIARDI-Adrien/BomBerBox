@@ -8,7 +8,6 @@
 #include <errno.h>
 #include <netinet/in.h>
 #include <Network.h>
-#include <Player.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/socket.h>
@@ -16,13 +15,21 @@
 #include <unistd.h>
 
 //-------------------------------------------------------------------------------------------------
+// Private types
+//-------------------------------------------------------------------------------------------------
+/** All available commands. */
+typedef enum
+{
+	NETWORK_COMMAND_DRAW_TILE, //!< The client must draw a tile at the specified location.
+	NETWORK_COMMAND_DRAW_TEXT, //!< The client must draw a string at the dedicated location.
+	NETWORK_COMMAND_CONNECT_TO_SERVER //!< The client tries to connect to the server.
+} TNetworkCommand;
+
+//-------------------------------------------------------------------------------------------------
 // Private variables
 //-------------------------------------------------------------------------------------------------
 /** The server socket. */
 static int Network_Server_Socket;
-
-/** The clients sockets. */
-static int Network_Client_Sockets[CONFIGURATION_MAXIMUM_PLAYERS_COUNT];
 
 //-------------------------------------------------------------------------------------------------
 // Public functions
@@ -30,6 +37,7 @@ static int Network_Client_Sockets[CONFIGURATION_MAXIMUM_PLAYERS_COUNT];
 int NetworkCreateServer(char *String_IP_Address, unsigned short Port)
 {
 	struct sockaddr_in Address;
+	int Option_Value = 1;
 	
 	// Try to create the socket
 	Network_Server_Socket = socket(AF_INET, SOCK_STREAM, 0);
@@ -40,7 +48,11 @@ int NetworkCreateServer(char *String_IP_Address, unsigned short Port)
 	}
 	
 	// Make the socket instantly reusable
-	// TODO
+	if (setsockopt(Network_Server_Socket, SOL_SOCKET, SO_REUSEADDR, &Option_Value, sizeof(Option_Value)) == -1)
+	{
+		printf("[%s:%d] Error : failed to set the server socket as reusable (%s).\n", __FUNCTION__, __LINE__, strerror(errno));
+		return 1;
+	}
 	
 	// Try to bind the server
 	Address.sin_family = AF_INET;
@@ -56,53 +68,102 @@ int NetworkCreateServer(char *String_IP_Address, unsigned short Port)
 	return 0;
 }
 
-int NetworkWaitForPlayers(int Expected_Players_Count, TPlayer *Pointer_Players)
+int NetworkWaitForPlayerConnection(int *Pointer_Player_Socket, char *Pointer_Player_Name)
 {
-	int i;
 	unsigned char Command_Code;
 	
-	// Make sure there is enough room for all players
-	if (Expected_Players_Count > CONFIGURATION_MAXIMUM_PLAYERS_COUNT)
+	// Tell how many connections to wait for
+	if (listen(Network_Server_Socket, CONFIGURATION_MAXIMUM_PLAYERS_COUNT) == -1)
 	{
-		printf("[%s:%d] Error : there are more expected players (%d) than the server can handle (%d).\n", __FUNCTION__, __LINE__, Expected_Players_Count, CONFIGURATION_MAXIMUM_PLAYERS_COUNT);
+		printf("[%s:%d] Error : listen() failed (%s).\n", __FUNCTION__, __LINE__, strerror(errno));
 		return 1;
 	}
 	
-	// Wait for the clients to connect
-	for (i = 0; i < Expected_Players_Count; i++)
+	// Try to connect the client
+	*Pointer_Player_Socket = accept(Network_Server_Socket, NULL, NULL);
+	if (*Pointer_Player_Socket == -1)
 	{
-		// Tell how many connections to wait for
-		if (listen(Network_Server_Socket, Expected_Players_Count) == -1)
-		{
-			printf("[%s:%d] Error : listen() failed (%s).\n", __FUNCTION__, __LINE__, strerror(errno));
-			return 1;
-		}
-		
-		// Try to connect the client
-		Network_Client_Sockets[i] = accept(Network_Server_Socket, NULL, NULL);
-		if (Network_Client_Sockets[i] == -1)
-		{
-			printf("[%s:%d] Error : client #%d failed to connect (%s).\n", __FUNCTION__, __LINE__, i + 1, strerror(errno));
-			i--; // Do as if nothing happened to avoid kicking the other clients by stopping the server
-			continue;
-		}
-		
-		// Retrieve the client name
-		// Discard the command code
-		if (read(Network_Client_Sockets[i], &Command_Code, 1) != 1)
+		printf("[%s:%d] Error : connect() failed (%s).\n", __FUNCTION__, __LINE__, strerror(errno));
+		return 1;
+	}
+	
+	// Retrieve the client name
+	// Wait for the command code
+	do
+	{
+		if (read(*Pointer_Player_Socket, &Command_Code, 1) != 1)
 		{
 			printf("[%s:%d] Error : failed to read the player name command code (%s).\n", __FUNCTION__, __LINE__, strerror(errno));
 			return 1;
 		}
-		// Get the command payload
-		if (read(Network_Client_Sockets[i], Pointer_Players[i].Name, CONFIGURATION_MAXIMUM_PLAYER_NAME_LENGTH - 1) < 1)
-		{
-			printf("[%s:%d] Error : failed to read the player name (%s).\n", __FUNCTION__, __LINE__, strerror(errno));
-			return 1;
-		}
-		Pointer_Players[i].Name[CONFIGURATION_MAXIMUM_PLAYER_NAME_LENGTH - 1] = 0; // Force a terminating zero
+	} while (Command_Code != NETWORK_COMMAND_CONNECT_TO_SERVER);
+	
+	// Get the command payload
+	if (read(*Pointer_Player_Socket, Pointer_Player_Name, CONFIGURATION_MAXIMUM_PLAYER_NAME_LENGTH - 1) < 1)
+	{
+		printf("[%s:%d] Error : failed to read the player name (%s).\n", __FUNCTION__, __LINE__, strerror(errno));
+		return 1;
+	}
+	Pointer_Player_Name[CONFIGURATION_MAXIMUM_PLAYER_NAME_LENGTH - 1] = 0; // Force a terminating zero
 		
-		printf("Client #%d connected, name : %s.\n", i + 1, Pointer_Players[i].Name);
+	return 0;
+}
+
+int NetworkSendCommandDrawTile(int Socket, int Tile_ID, int Row, int Column)
+{
+	unsigned char Temp_Byte;
+	
+	// Send the command
+	Temp_Byte = NETWORK_COMMAND_DRAW_TILE;
+	if (write(Socket, &Temp_Byte, 1) != 1)
+	{
+		printf("[%s:%d] Error : failed to send the 'draw tile' command (%s).\n", __FUNCTION__, __LINE__, strerror(errno));
+		return 1;
+	}
+	
+	// Send the tile ID
+	Temp_Byte = (unsigned char) Tile_ID;
+	if (write(Socket, &Temp_Byte, 1) != 1)
+	{
+		printf("[%s:%d] Error : failed to send the tile ID (%s).\n", __FUNCTION__, __LINE__, strerror(errno));
+		return 1;
+	}
+	
+	// Send the row coordinate
+	Temp_Byte = (unsigned char) Row;
+	if (write(Socket, &Temp_Byte, 1) != 1)
+	{
+		printf("[%s:%d] Error : failed to send the row coordinate (%s).\n", __FUNCTION__, __LINE__, strerror(errno));
+		return 1;
+	}
+	
+	// Send the column coordinate
+	Temp_Byte = (unsigned char) Column;
+	if (write(Socket, &Temp_Byte, 1) != 1)
+	{
+		printf("[%s:%d] Error : failed to send the column coordinate (%s).\n", __FUNCTION__, __LINE__, strerror(errno));
+		return 1;
+	}
+	
+	return 0;
+}
+
+int NetworkSendCommandDrawText(int Socket, char *String_Text)
+{
+	unsigned char Command = NETWORK_COMMAND_DRAW_TEXT;
+	
+	// Send the command
+	if (write(Socket, &Command, 1) != 1)
+	{
+		printf("[%s:%d] Error : failed to send the 'draw text' command (%s).\n", __FUNCTION__, __LINE__, strerror(errno));
+		return 1;
+	}
+	
+	// Send the payload
+	if (write(Socket, String_Text, strlen(String_Text)) <= 0)
+	{
+		printf("[%s:%d] Error : failed to send the 'draw text' payload (%s).\n", __FUNCTION__, __LINE__, strerror(errno));
+		return 1;
 	}
 	
 	return 0;

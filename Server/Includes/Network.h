@@ -6,8 +6,6 @@
 #ifndef H_NETWORK_H
 #define H_NETWORK_H
 
-#include <Player.h>
-
 //-------------------------------------------------------------------------------------------------
 // Types
 //-------------------------------------------------------------------------------------------------
@@ -33,19 +31,33 @@ typedef enum
  */
 int NetworkCreateServer(char *String_IP_Address, unsigned short Port);
 
-/** Wait for the requested amount of players.
- * @param Expected_Players_Count How many players to wait for.
- * @param Pointer_Player_Names On output, contain the name of all connected players. The array must have CONFIGURATION_MAXIMUM_PLAYERS_COUNT entries.
+/** Wait for a player to connect to the server.
+ * @param Pointer_Player_Socket On output, will contain the player socket.
+ * @param Pointer_Player_Name On output, contain the name of the player. The string must be CONFIGURATION_MAXIMUM_PLAYERS_COUNT bytes long.
  * @return 0 on success,
  * @return 1 if an error occurred.
- */ 
-int NetworkWaitForPlayers(int Expected_Players_Count, TPlayer *Pointer_Players);
+ */
+int NetworkWaitForPlayerConnection(int *Pointer_Player_Socket, char *Pointer_Player_Name);
 
 void NetworkShutdownServer(void);
 
 int NetworkGetNextEvent(int *Pointer_Player_ID, TNetworkEvent *Pointer_Event);
 
-int NetworkSendCommandDrawSprite(int Player_ID, int Sprite_ID, int Row, int Column);
-int NetworkSendCommandDrawText(int Player_ID, char *String_Text);
+/** Tell the client to draw a specific tile at the specified coordinates.
+ * @param Socket The client socket.
+ * @param Tile_ID The tile the client must display.
+ * @param Row The tile Y coordinate.
+ * @param Column The tile X coordinate.
+ * @return 0 on success,
+ * @return 1 if an error occurred.
+ */
+int NetworkSendCommandDrawTile(int Socket, int Tile_ID, int Row, int Column);
+
+/** Send a displayable message to a client.
+ * @param String_Text The message the client must display.
+ * @return 0 on success,
+ * @return 1 if an error occurred.
+ */
+int NetworkSendCommandDrawText(int Socket, char *String_Text);
 
 #endif

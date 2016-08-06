@@ -4,17 +4,11 @@
  */
 
 #include <Configuration.h>
+#include <Game.h>
 #include <Map.h>
 #include <Network.h>
-#include <Player.h>
 #include <stdio.h>
 #include <stdlib.h>
-
-//-------------------------------------------------------------------------------------------------
-// Private variables
-//-------------------------------------------------------------------------------------------------
-/** All players. */
-static TPlayer Players[CONFIGURATION_MAXIMUM_PLAYERS_COUNT];
 
 //-------------------------------------------------------------------------------------------------
 // Entry point
@@ -55,10 +49,10 @@ int main(int argc, char *argv[])
 		printf("[%s:%d] Error : could not create the server on IP %s and port %u.\n", __FUNCTION__, __LINE__, String_IP_Address, Port);
 		return EXIT_FAILURE;
 	}
-	printf("Server up.\n");
-	
-	// Wait for the clients to connect
-	if (NetworkWaitForPlayers(Expected_Players_Count, Players) != 0) return EXIT_FAILURE;
+	printf("Server up. Waiting for clients.\n");
+
+	// Start the game
+	GameLoop(Expected_Players_Count);
 	
 	return EXIT_SUCCESS;
 }
