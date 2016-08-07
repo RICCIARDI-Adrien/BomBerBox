@@ -24,6 +24,7 @@ typedef struct
 	// TODO bonus items
 } TGamePlayer;
 
+/** A bomb item. */
 typedef struct
 {
 	//TODO Explosion_Timer
@@ -66,7 +67,7 @@ static inline void GameWaitForPlayersConnection(void)
 }
 
 /** Send the map to all connected clients. */
-static void GameInitializeMap(void)
+static inline void GameInitializeMap(void)
 {
 	int i, Row, Column;
 	
@@ -79,21 +80,58 @@ static void GameInitializeMap(void)
 	}
 }
 
+/** Process a received event for a specific player.
+ * @param Pointer_Player The player that has received an event.
+ * @param Event The event received from the player.
+ */
+static inline void GameProcessEvents(TGamePlayer *Pointer_Player, TNetworkEvent Event)
+{
+	switch (Event)
+	{
+		case NETWORK_EVENT_GO_UP:
+			printf("up\n"); // TEST
+			break;
+			
+		default:
+			printf("unknown event\n"); // TEST
+	}
+}
+
 /*GameSpawnPlayers
 
-GameMovePlayer
-
-GameProcessEvents*/
+GameMovePlayer*/
 
 //-------------------------------------------------------------------------------------------------
 // Public functions
 //-------------------------------------------------------------------------------------------------
 void GameLoop(int Expected_Players_Count)
 {
+	int i;
+	TNetworkEvent Event;
+	
 	// Make sure everyone is in before starting the game
 	Game_Players_Count = Expected_Players_Count;
 	GameWaitForPlayersConnection();
 	
 	// All players are in, send them the map
 	GameInitializeMap();
+	
+	// TODO spawn players
+	// TODO tell all clients game is ready (remove previous text too)
+	
+	while (1) // TEST, TODO clean exit
+	{
+		// TODO tick timer
+		
+		// Handle player events
+		for (i = 0; i < Game_Players_Count; i++)
+		{
+			if (NetworkGetEvent(Game_Players[i].Socket, &Event) != 0) printf("[%s:%d] Error : failed to get the player #%d next event.\n", __FUNCTION__, __LINE__, i + 1);
+			else GameProcessEvents(&Game_Players[i], Event);
+		}
+		
+		// TODO handle bombs
+		
+		// TODO tick timer
+	}
 }

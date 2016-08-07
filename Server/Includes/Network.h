@@ -12,6 +12,7 @@
 /** All events that can be received from a client. */
 typedef enum
 {
+	NETWORK_EVENT_NONE, //!< No event was sent by the client.
 	NETWORK_EVENT_GO_UP, //!< The client pressed the "up" button.
 	NETWORK_EVENT_GO_DOWN, //!< The client pressed the "down" button.
 	NETWORK_EVENT_GO_LEFT, //!< The client pressed the "left" button.
@@ -41,7 +42,13 @@ int NetworkWaitForPlayerConnection(int *Pointer_Player_Socket, char *Pointer_Pla
 
 void NetworkShutdownServer(void);
 
-int NetworkGetNextEvent(int *Pointer_Player_ID, TNetworkEvent *Pointer_Event);
+/** Tell if the specified client sent an event or not.
+ * @param Socket The client socket.
+ * @param Pointer_Event On output, contain the event received from the client.
+ * @return 0 on success,
+ * @return 1 if an error occurred.
+ */
+int NetworkGetEvent(int Socket, TNetworkEvent *Pointer_Event);
 
 /** Tell the client to draw a specific tile at the specified coordinates.
  * @param Socket The client socket.

@@ -22,7 +22,8 @@ typedef enum
 {
 	NETWORK_COMMAND_DRAW_TILE, //!< The client must draw a tile at the specified location.
 	NETWORK_COMMAND_DRAW_TEXT, //!< The client must draw a string at the dedicated location.
-	NETWORK_COMMAND_CONNECT_TO_SERVER //!< The client tries to connect to the server.
+	NETWORK_COMMAND_CONNECT_TO_SERVER, //!< The client tries to connect to the server.
+	NETWORK_COMMAND_GET_EVENT //!< The client sends a button event to the server.
 } TNetworkCommand;
 
 //-------------------------------------------------------------------------------------------------
@@ -106,6 +107,60 @@ int NetworkWaitForPlayerConnection(int *Pointer_Player_Socket, char *Pointer_Pla
 	}
 	Pointer_Player_Name[CONFIGURATION_MAXIMUM_PLAYER_NAME_LENGTH - 1] = 0; // Force a terminating zero
 		
+	return 0;
+}
+
+int NetworkGetEvent(int Socket, TNetworkEvent *Pointer_Event)
+{
+	int Events_Count;
+	fd_set File_Descriptors_Set;
+	struct timeval Select_Timeout;
+	unsigned char Temp_Byte;
+	
+	// Create the set of file descriptors (it must created for each call)
+	FD_ZERO(&File_Descriptors_Set);
+	FD_SET(Socket, &File_Descriptors_Set);
+		
+	// Set the timeout value to zero to make select() instantly return (it must be reset each time too)
+	Select_Timeout.tv_sec = 0;
+	Select_Timeout.tv_usec = 0;
+	
+	// Use select() as it can poll a blocking socket without blocking the program
+	Events_Count = select(Socket + 1, &File_Descriptors_Set, NULL, NULL, &Select_Timeout);
+	if (Events_Count == -1)
+	{
+		printf("[%s:%d] Error : select() failed (%s).\n", __FUNCTION__, __LINE__, strerror(errno));
+		return 1;
+	}
+	
+	// Did the client sent some event ?
+	if (Events_Count == 0)
+	{
+		*Pointer_Event = NETWORK_EVENT_NONE;
+		return 0;
+	}
+	
+	// Process the event
+	
+	// TODO check for player deconnection
+	
+	// Retrieve the event content
+	// Get the command
+	if (read(Socket, &Temp_Byte, 1) != 1)
+	{
+		printf("[%s:%d] Error : failed to read the event command (%s).\n", __FUNCTION__, __LINE__, strerror(errno));
+		return 1;
+	}
+	// TODO check on the command if several commands exist one day
+	
+	// Get the event
+	if (read(Socket, &Temp_Byte, 1) != 1)
+	{
+		printf("[%s:%d] Error : failed to read the event (%s).\n", __FUNCTION__, __LINE__, strerror(errno));
+		return 1;
+	}
+	*Pointer_Event = Temp_Byte;
+	
 	return 0;
 }
 
