@@ -115,7 +115,7 @@ int NetworkGetEvent(int Socket, TNetworkEvent *Pointer_Event)
 	int Events_Count;
 	fd_set File_Descriptors_Set;
 	struct timeval Select_Timeout;
-	unsigned char Temp_Byte;
+	unsigned char Command_Data[2];
 	
 	// The player is not connected anymore, ignore him
 	if (Socket == -1)
@@ -149,22 +149,14 @@ int NetworkGetEvent(int Socket, TNetworkEvent *Pointer_Event)
 	
 	// TODO check for player deconnection
 	
-	// Retrieve the event content
 	// Get the command
-	if (read(Socket, &Temp_Byte, 1) != 1)
+	if (read(Socket, Command_Data, sizeof(Command_Data)) != sizeof(Command_Data))
 	{
-		printf("[%s:%d] Error : failed to read the event command (%s).\n", __FUNCTION__, __LINE__, strerror(errno));
+		printf("[%s:%d] Error : failed to receive the 'get event' command (%s).\n", __FUNCTION__, __LINE__, strerror(errno));
 		return 1;
 	}
-	// TODO check on the command if several commands exist one day
-	
-	// Get the event
-	if (read(Socket, &Temp_Byte, 1) != 1)
-	{
-		printf("[%s:%d] Error : failed to read the event (%s).\n", __FUNCTION__, __LINE__, strerror(errno));
-		return 1;
-	}
-	*Pointer_Event = Temp_Byte;
+	// Retrieve the event content
+	*Pointer_Event = Command_Data[1];
 	
 	return 0;
 }
