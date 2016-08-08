@@ -22,6 +22,7 @@ typedef struct
 	int Is_Bomb_Available; //!< Tell if the player can use a bomb or not.
 	int Explosion_Range; //!< How many cells an explosion can reach.
 	// TODO bonus items
+	int Is_Ghost_Mode_Enabled; //!< Tell if the player can cross the destructible objects or not.
 } TGamePlayer;
 
 /** A bomb item. */
@@ -80,26 +81,122 @@ static inline void GameInitializeMap(void)
 	}
 }
 
+/** Tell if a player can move to a specific map cell.
+ * @param Pointer_Player The player.
+ * @param Destination_Cell_Content The type of the destination cell.
+ * @return 0 if the player can't go to this cell,
+ * @return 1 if the player can reach this cell.
+ */
+static inline int GameIsPlayerMoveAllowed(TGamePlayer *Pointer_Player, TMapCellContent Destination_Cell_Content)
+{
+	// The player can't cross the walls
+	if (Destination_Cell_Content == MAP_CELL_CONTENT_WALL) return 0;
+	
+	// Is the player in ghost mode ?
+	if ((Destination_Cell_Content == MAP_CELL_CONTENT_DESTRUCTIBLE_OBSTACLE) && (!Pointer_Player->Is_Ghost_Mode_Enabled)) return 0;
+
+	return 1;
+}
+
 /** Process a received event for a specific player.
  * @param Pointer_Player The player that has received an event.
  * @param Event The event received from the player.
  */
 static inline void GameProcessEvents(TGamePlayer *Pointer_Player, TNetworkEvent Event)
 {
+	TMapCellContent Cell_Content;
+	int Has_Player_Moved = 0, Player_Previous_Row = 0, Player_Previous_Column = 0, i;
+	TGameTileID Tile_ID;
+	
 	switch (Event)
 	{
 		case NETWORK_EVENT_GO_UP:
-			printf("up\n"); // TEST
+			// The player can't cross the map borders
+			if (Pointer_Player->Row == 0) return;
+			
+			// Check if the move is allowed
+			Cell_Content = Map[Pointer_Player->Row - 1][Pointer_Player->Column].Content;
+			if (!GameIsPlayerMoveAllowed(Pointer_Player, Cell_Content)) return;
+		
+			Player_Previous_Row = Pointer_Player->Row;
+			Player_Previous_Column = Pointer_Player->Column;
+			Pointer_Player->Row--;
+			Has_Player_Moved = 1;
 			break;
 			
+		case NETWORK_EVENT_GO_DOWN:
+			// The player can't cross the map borders
+			if (Pointer_Player->Row == CONFIGURATION_MAP_ROWS_COUNT - 1) return;
+			
+			// Check if the move is allowed
+			Cell_Content = Map[Pointer_Player->Row + 1][Pointer_Player->Column].Content;
+			if (!GameIsPlayerMoveAllowed(Pointer_Player, Cell_Content)) return;
+		
+			Player_Previous_Row = Pointer_Player->Row;
+			Player_Previous_Column = Pointer_Player->Column;
+			Pointer_Player->Row++;
+			Has_Player_Moved = 1;
+			break;
+			
+		case NETWORK_EVENT_GO_LEFT:
+			// The player can't cross the map borders
+			if (Pointer_Player->Column == 0) return;
+			
+			// Check if the move is allowed
+			Cell_Content = Map[Pointer_Player->Row][Pointer_Player->Column - 1].Content;
+			if (!GameIsPlayerMoveAllowed(Pointer_Player, Cell_Content)) return;
+			
+			Player_Previous_Row = Pointer_Player->Row;
+			Player_Previous_Column = Pointer_Player->Column;
+			Pointer_Player->Column--;
+			Has_Player_Moved = 1;
+			break;
+			
+		case NETWORK_EVENT_GO_RIGHT:
+			// The player can't cross the map borders
+			if (Pointer_Player->Column == CONFIGURATION_MAP_COLUMNS_COUNT - 1) return;
+			
+			// Check if the move is allowed
+			Cell_Content = Map[Pointer_Player->Row][Pointer_Player->Column + 1].Content;
+			if (!GameIsPlayerMoveAllowed(Pointer_Player, Cell_Content)) return;
+			
+			Player_Previous_Row = Pointer_Player->Row;
+			Player_Previous_Column = Pointer_Player->Column;
+			Pointer_Player->Column++;
+			Has_Player_Moved = 1;
+			break;
+			
+		// TODO handle player deconnection (set player socket to -1 to disable network command functions)
+			
 		default:
-			printf("unknown event\n"); // TEST
+			printf("[%s:%d] Warning : unknown event (%d) from socket %d.\n", __FUNCTION__, __LINE__, Event, Pointer_Player->Socket);
+			break;
+	}
+	
+	// Notify all clients that a player moved
+	if (Has_Player_Moved)
+	{
+		// TODO get item if there is one on the cell
+		
+		// Tell all clients to erase the player trace
+		for (i = 0; i < Game_Players_Count; i++) NetworkSendCommandDrawTile(Game_Players[i].Socket, GAME_TILE_ID_EMPTY, Player_Previous_Row, Player_Previous_Column);
+		
+		// Tell all clients to draw the player tile (drawing all tiles after having erased all traces grants that one player tile is not erased by another player move because of erasing order)
+		for (i = 0; i < Game_Players_Count; i++)
+		{
+			// Select the right tile to send according to the destination client
+			if (Game_Players[i].Socket == Pointer_Player->Socket) Tile_ID = GAME_TILE_ID_CURRENT_PLAYER;
+			else Tile_ID = GAME_TILE_ID_OTHER_PLAYER;
+		
+			NetworkSendCommandDrawTile(Game_Players[i].Socket, Tile_ID, Pointer_Player->Row, Pointer_Player->Column);
+		}
 	}
 }
 
+
 /*GameSpawnPlayers
 
-GameMovePlayer*/
+*/
 
 //-------------------------------------------------------------------------------------------------
 // Public functions
@@ -117,7 +214,11 @@ void GameLoop(int Expected_Players_Count)
 	GameInitializeMap();
 	
 	// TODO spawn players
-	// TODO tell all clients game is ready (remove previous text too)
+	
+	
+	// Tell all clients that game is ready
+	for (i = 0; i < Game_Players_Count; i++) NetworkSendCommandDrawText(Game_Players[i].Socket, "Successfully connected. Waiting for others...");
+	printf("All player connected. Launching game.\n");
 	
 	while (1) // TEST, TODO clean exit
 	{
@@ -127,7 +228,7 @@ void GameLoop(int Expected_Players_Count)
 		for (i = 0; i < Game_Players_Count; i++)
 		{
 			if (NetworkGetEvent(Game_Players[i].Socket, &Event) != 0) printf("[%s:%d] Error : failed to get the player #%d next event.\n", __FUNCTION__, __LINE__, i + 1);
-			else GameProcessEvents(&Game_Players[i], Event);
+			else if (Event != NETWORK_EVENT_NONE) GameProcessEvents(&Game_Players[i], Event); // Avoid calling the function if there is nothing to do
 		}
 		
 		// TODO handle bombs
