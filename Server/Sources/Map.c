@@ -8,6 +8,7 @@
 #include <fcntl.h>
 #include <Map.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -98,6 +99,11 @@ int MapLoad(char *String_File_Path)
 					Map_Spawn_Points_Count++;
 					break;
 					
+				case 'N':
+					Map[Row][Column].Content = MAP_CELL_CONTENT_NO_DESTRUCTIBLE_OBSTACLE_ZONE;
+					Map[Row][Column].Tile_ID = GAME_TILE_ID_EMPTY;
+					break;
+					
 				default:
 					printf("[%s:%d] Error : map cell (row : %d, column : %d) value (%c) is not allowed.\n", __FUNCTION__, __LINE__, Row + 1, Column + 1, Character);
 					close(File_Descriptor);
@@ -107,6 +113,23 @@ int MapLoad(char *String_File_Path)
 	}
 	
 	close(File_Descriptor);
+	
+	// Generate destructible objects
+	for (Row = 0; Row < CONFIGURATION_MAP_ROWS_COUNT; Row++)
+	{
+		for (Column = 0; Column < CONFIGURATION_MAP_COLUMNS_COUNT; Column++)
+		{
+			if (Map[Row][Column].Content  != (MAP_CELL_CONTENT_WALL || MAP_CELL_CONTENT_PLAYER_SPAWN_POINT || MAP_CELL_CONTENT_NO_DESTRUCTIBLE_OBSTACLE_ZONE))
+			{
+				if (rand() % 50 > 35)
+				{
+					Map[Row][Column].Content = MAP_CELL_CONTENT_DESTRUCTIBLE_OBSTACLE;
+					Map[Row][Column].Tile_ID = GAME_TILE_ID_DESTRUCTIBLE_OBSTACLE;
+				}
+			}
+		}
+	}
+	
 	return 0;
 }
 

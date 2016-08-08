@@ -1,9 +1,9 @@
-S                   
+SN                  
+NN                  
                     
-                    
-WWW                 
-W            S      
-W                   
+WWW         NNN     
+W           NSN     
+W           NNN     
 W                   
             WWWW WWW
                     
@@ -11,5 +11,5 @@ W
                     
                     
                     
-                    
-S                  S
+NN                NN
+SN                NS

@@ -1,12 +1,5 @@
 /** @file Map.h
  * Load and access to a map content.
- * Map file format :
- * The map file is an ASCII text file that must exactly fit CONFIGURATION_MAP_ROWS_COUNT lines of CONFIGURATION_MAP_COLUMNS_COUNT columns.
- * The following characters have meaning :
- *   ' ' (space) : an empty cell
- *   D : a destructible object
- *   S : a player spawn point
- *   W : an indestructible wall
  * @author Adrien RICCIARDI
  */
 
@@ -22,10 +15,12 @@
 /** What a cell can content (players and bombs are handled apart). */
 typedef enum
 {
-	MAP_CELL_CONTENT_EMPTY, //! No item or wall in the cell.
-	MAP_CELL_CONTENT_WALL, //! There is an indestructible wall in the cell.
-	MAP_CELL_CONTENT_DESTRUCTIBLE_OBSTACLE, //! The obstacle can be broken by a bomb.
-	MAP_CELL_CONTENT_PLAYER_SPAWN_POINT, //! A player can spawn here.
+	MAP_CELL_CONTENT_EMPTY, //!< No item or wall in the cell.
+	MAP_CELL_CONTENT_WALL, //!< There is an indestructible wall in the cell.
+	MAP_CELL_CONTENT_DESTRUCTIBLE_OBSTACLE, //!< The obstacle can be broken by a bomb.
+	MAP_CELL_CONTENT_PLAYER_SPAWN_POINT, //!< A player can spawn here.
+	MAP_CELL_CONTENT_NO_DESTRUCTIBLE_OBSTACLE_ZONE, //!< No destructible obstacle can be spawn here.
+	MAP_CELL_CONTENT_BOMB //!< A bomb is here.
 } TMapCellContent;
 
 /** A map cell. */
@@ -33,6 +28,8 @@ typedef struct
 {
 	TMapCellContent Content; //!< What is located in the cell.
 	TGameTileID Tile_ID; //!< The corresponding tile.
+	int Is_Exploding; //!< Tell if this cell is currently exploding or not.
+	int Explosion_Timer; // TODO
 } TMapCell;
 
 //-------------------------------------------------------------------------------------------------
