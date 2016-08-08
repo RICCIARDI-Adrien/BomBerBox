@@ -38,6 +38,8 @@ int display_init(void)
         return -1;
     }
 
+    memset(&ctx->tiles[0], 0, DISPLAY_MAX_TILES * sizeof(SDL_Surface*));
+
     rc = SDL_Init(SDL_INIT_VIDEO);
     if ( rc < 0 ) {
         fprintf(stderr, "Failed to init SDL: %s\n", SDL_GetError());
