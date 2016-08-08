@@ -26,6 +26,7 @@ static display_context_t * ctx = NULL;
 int display_init(void)
 {
     int rc;
+    SDL_Rect pos;
     
     // already initialized
     if ( ctx ) {
@@ -47,7 +48,7 @@ int display_init(void)
         return -1;
     }
 
-    ctx->screen = SDL_SetVideoMode(640, 480, 32, SDL_HWSURFACE);
+    ctx->screen = SDL_SetVideoMode(689, 585, 32, SDL_HWSURFACE);
     if ( ! ctx->screen ) {
         fprintf(stderr, "Failed to load video mode: %s\n", SDL_GetError());
         free(ctx);
@@ -59,6 +60,11 @@ int display_init(void)
         fprintf(stderr, "cannot load tiles\n");
         free(ctx);
     }
+
+    pos.x=0;
+    pos.y=0;
+    SDL_BlitSurface(ctx->tiles[255], NULL, ctx->screen, &pos);
+    SDL_Flip(ctx->screen);
     
     return rc;
 }

@@ -202,7 +202,7 @@ int game_process(int sockfd)
             case CLT_CMD_DISPLAY_TILE:
             {
                 recv(sockfd, &buffer[0], 3, 0);
-                display_tile(buffer[0], buffer[2] * 32, buffer[1] * 32);
+                display_tile(buffer[0], 25 + buffer[2] * 32, 87 + buffer[1] * 32);
                 break;
             }
             case CLT_CMD_DISPLAY_STR:
