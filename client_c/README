@@ -1,0 +1,2 @@
+gcc -c -o display.o display.c -lSDL -lSDL_image
+gcc display.o main.c -o bomber -lSDL -lSDL_image
