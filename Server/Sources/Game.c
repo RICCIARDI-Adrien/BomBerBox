@@ -81,6 +81,33 @@ static inline void GameInitializeMap(void)
 	}
 }
 
+/** Put all players on a different spawn point. */
+static inline void GameSpawnPlayers(void)
+{
+	int i, Row, Column, j;
+	TGameTileID Tile_ID;
+	
+	for (i = 0; i < Game_Players_Count; i++)
+	{
+		// Get next spawn point coordinates
+		MapGetSpawnPointCoordinates(i, &Row, &Column);
+	
+		// Put player at this location
+		Game_Players[i].Row = Row;
+		Game_Players[i].Column = Column;
+		
+		// Tell the clients to display the player
+		for (j = 0; j < Game_Players_Count; j++)
+		{
+			// Choose the right player tile according to the client
+			if (j == i) Tile_ID = GAME_TILE_ID_CURRENT_PLAYER; // The client must recognize it's own player
+			else Tile_ID = GAME_TILE_ID_OTHER_PLAYER;
+			
+			NetworkSendCommandDrawTile(Game_Players[j].Socket, Tile_ID, Row, Column);
+		}
+	}
+}
+
 /** Tell if a player can move to a specific map cell.
  * @param Pointer_Player The player.
  * @param Destination_Cell_Content The type of the destination cell.
@@ -193,11 +220,6 @@ static inline void GameProcessEvents(TGamePlayer *Pointer_Player, TNetworkEvent 
 	}
 }
 
-
-/*GameSpawnPlayers
-
-*/
-
 //-------------------------------------------------------------------------------------------------
 // Public functions
 //-------------------------------------------------------------------------------------------------
@@ -212,13 +234,15 @@ void GameLoop(int Expected_Players_Count)
 	
 	// All players are in, send them the map
 	GameInitializeMap();
+	printf("Map sent to players.\n");
 	
-	// TODO spawn players
-	
+	// Choose initial players location
+	GameSpawnPlayers();
+	printf("Players spawned.\n");
 	
 	// Tell all clients that game is ready
 	for (i = 0; i < Game_Players_Count; i++) NetworkSendCommandDrawText(Game_Players[i].Socket, "Successfully connected. Waiting for others...");
-	printf("All player connected. Launching game.\n");
+	printf("Launching game.\n");
 	
 	while (1) // TEST, TODO clean exit
 	{

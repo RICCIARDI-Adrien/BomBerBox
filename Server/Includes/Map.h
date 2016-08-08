@@ -56,6 +56,14 @@ int MapLoad(char *String_File_Path);
  */
 int MapGetSpawnPointsCount(void);
 
+/** Get a specified spawn point coordinates. Spawn points are numbered starting from map left to right, upper to bottom.
+ * @param Spawn_Point_Index The spawn point index (leftmost and upper map spawn point is 0, index increments continuing to right then to next row).
+ * @param Pointer_Row On output, contain the spawn point row.
+ * @param Pointer_Column On output, contain the spawn point column.
+ * @note If the spawn point index does not exist, the returned coordinates will be zero.
+ */
+void MapGetSpawnPointCoordinates(int Spawn_Point_Index, int *Pointer_Row, int *Pointer_Column);
+
 // MapSpawnItem 
 
 #endif
