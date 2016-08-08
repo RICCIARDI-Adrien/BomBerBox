@@ -75,8 +75,17 @@ int MapLoad(char *String_File_Path)
 			switch (Character)
 			{
 				case ' ':
-					Map[Row][Column].Content = MAP_CELL_CONTENT_EMPTY;
-					Map[Row][Column].Tile_ID = GAME_TILE_ID_EMPTY;
+					// Generate or not a destructible object in this empty cell
+					if (rand() % 50 > CONFIGURATION_DESTRUCTIBLE_OBSTACLES_GENERATION_PROBABILITY)
+					{
+						Map[Row][Column].Content = MAP_CELL_CONTENT_DESTRUCTIBLE_OBSTACLE;
+						Map[Row][Column].Tile_ID = GAME_TILE_ID_DESTRUCTIBLE_OBSTACLE;
+					}
+					else
+					{
+						Map[Row][Column].Content = MAP_CELL_CONTENT_EMPTY;
+						Map[Row][Column].Tile_ID = GAME_TILE_ID_EMPTY;
+					}
 					break;
 					
 				case 'W':
@@ -111,24 +120,7 @@ int MapLoad(char *String_File_Path)
 			}
 		}
 	}
-	
 	close(File_Descriptor);
-	
-	// Generate destructible objects
-	for (Row = 0; Row < CONFIGURATION_MAP_ROWS_COUNT; Row++)
-	{
-		for (Column = 0; Column < CONFIGURATION_MAP_COLUMNS_COUNT; Column++)
-		{
-			if (Map[Row][Column].Content  != (MAP_CELL_CONTENT_WALL || MAP_CELL_CONTENT_PLAYER_SPAWN_POINT || MAP_CELL_CONTENT_NO_DESTRUCTIBLE_OBSTACLE_ZONE))
-			{
-				if (rand() % 50 > 35)
-				{
-					Map[Row][Column].Content = MAP_CELL_CONTENT_DESTRUCTIBLE_OBSTACLE;
-					Map[Row][Column].Tile_ID = GAME_TILE_ID_DESTRUCTIBLE_OBSTACLE;
-				}
-			}
-		}
-	}
 	
 	return 0;
 }
