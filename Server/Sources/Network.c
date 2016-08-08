@@ -168,6 +168,9 @@ int NetworkSendCommandDrawTile(int Socket, int Tile_ID, int Row, int Column)
 {
 	unsigned char Temp_Byte;
 	
+	// The player is not connected anymore, ignore him
+	if (Socket == -1) return 0;
+	
 	// Send the command
 	Temp_Byte = NETWORK_COMMAND_DRAW_TILE;
 	if (write(Socket, &Temp_Byte, 1) != 1)
@@ -205,12 +208,23 @@ int NetworkSendCommandDrawTile(int Socket, int Tile_ID, int Row, int Column)
 
 int NetworkSendCommandDrawText(int Socket, char *String_Text)
 {
-	unsigned char Command = NETWORK_COMMAND_DRAW_TEXT;
+	unsigned char Command = NETWORK_COMMAND_DRAW_TEXT, Text_Length;
+	
+	// The player is not connected anymore, ignore him
+	if (Socket == -1) return 0;
 	
 	// Send the command
 	if (write(Socket, &Command, 1) != 1)
 	{
 		printf("[%s:%d] Error : failed to send the 'draw text' command (%s).\n", __FUNCTION__, __LINE__, strerror(errno));
+		return 1;
+	}
+	
+	// Send the text length
+	Text_Length = strnlen(String_Text, 255);
+	if (write(Socket, &Text_Length, 1) <= 0)
+	{
+		printf("[%s:%d] Error : failed to send the 'draw text' text length (%s).\n", __FUNCTION__, __LINE__, strerror(errno));
 		return 1;
 	}
 	

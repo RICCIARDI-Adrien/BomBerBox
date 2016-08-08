@@ -14,10 +14,22 @@
 #include <unistd.h>
 
 //-------------------------------------------------------------------------------------------------
+// Private types
+//-------------------------------------------------------------------------------------------------
+/** A cell coordinates in the map. */
+typedef struct
+{
+	int Row;
+	int Column;
+} TMapCellCoordinate;
+
+//-------------------------------------------------------------------------------------------------
 // Private variables
 //-------------------------------------------------------------------------------------------------
 /** How many spawn points the last loaded map have. */
 static int Map_Spawn_Points_Count;
+/** The spawn points location. */
+static TMapCellCoordinate Map_Spawn_Points_Coordinates[CONFIGURATION_MAXIMUM_PLAYERS_COUNT];
 
 //-------------------------------------------------------------------------------------------------
 // Public variables
@@ -79,6 +91,10 @@ int MapLoad(char *String_File_Path)
 				case 'S':
 					Map[Row][Column].Content = MAP_CELL_CONTENT_PLAYER_SPAWN_POINT;
 					Map[Row][Column].Tile_ID = GAME_TILE_ID_EMPTY;
+					
+					// Store the spawn point coordinates
+					Map_Spawn_Points_Coordinates[Map_Spawn_Points_Count].Row = Row;
+					Map_Spawn_Points_Coordinates[Map_Spawn_Points_Count].Column = Column;
 					Map_Spawn_Points_Count++;
 					break;
 					
@@ -98,3 +114,18 @@ int MapGetSpawnPointsCount(void)
 {
 	return Map_Spawn_Points_Count;
 }
+
+void MapGetSpawnPointCoordinates(int Spawn_Point_Index, int *Pointer_Row, int *Pointer_Column)
+{
+	// Make sure the spawn point is existing
+	if (Spawn_Point_Index > Map_Spawn_Points_Count)
+	{
+		*Pointer_Row = 0;
+		*Pointer_Column = 0;
+		return;
+	}
+	
+	*Pointer_Row = Map_Spawn_Points_Coordinates[Spawn_Point_Index].Row;
+	*Pointer_Column = Map_Spawn_Points_Coordinates[Spawn_Point_Index].Column;
+}
+	
