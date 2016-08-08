@@ -4,6 +4,7 @@
 
 #include <SDL/SDL.h>
 #include <SDL/SDL_image.h>
+#include <SDL/SDL_ttf.h>
 
 #define DISPLAY_MAX_TILES   256
 
@@ -13,12 +14,21 @@ typedef struct _display_tile display_tile_t;
 struct _display_context {
     SDL_Surface * screen;
     SDL_Surface * tiles[DISPLAY_MAX_TILES];
+    TTF_Font    * text_font;
+    SDL_Surface * text_surface;
 };
 
 typedef struct _display_context display_context_t;
 
-
+//--------------------------------------------------------------------
+// PRIVATE VARIABLES
+//--------------------------------------------------------------------
 static display_context_t * ctx = NULL;
+
+//--------------------------------------------------------------------
+// PROTOTYPE
+//--------------------------------------------------------------------
+int _load_tiles(const char * path);
 
 //--------------------------------------------------------------------
 // PUBLIC API
@@ -39,6 +49,14 @@ int display_init(void)
         return -1;
     }
 
+    TTF_Init();
+    ctx->text_font = TTF_OpenFont("ressources/SIXTY.TTF", 22);
+    if ( ! ctx->text_font ) {
+        perror("TTF init");
+        free(ctx);
+        return -1;
+    }
+    ctx->text_surface = NULL;
     memset(&ctx->tiles[0], 0, DISPLAY_MAX_TILES * sizeof(SDL_Surface*));
 
     rc = SDL_Init(SDL_INIT_VIDEO);
@@ -48,7 +66,7 @@ int display_init(void)
         return -1;
     }
 
-    ctx->screen = SDL_SetVideoMode(689, 585, 32, SDL_HWSURFACE);
+    ctx->screen = SDL_SetVideoMode(689, 650, 32, SDL_HWSURFACE);
     if ( ! ctx->screen ) {
         fprintf(stderr, "Failed to load video mode: %s\n", SDL_GetError());
         free(ctx);
@@ -67,6 +85,35 @@ int display_init(void)
     SDL_Flip(ctx->screen);
     
     return rc;
+}
+
+//--------------------------------------------------------------------
+int display_text(char * str)
+{
+    SDL_Rect text_location;
+    SDL_Color text_foreground = { 255, 255, 255 };
+    SDL_Color text_background = { 0, 0, 255 };
+
+    // sanity check
+    if ( ! str ) {
+        fprintf(stderr, "invalid arguments\n");
+        return -1;
+    }
+
+    if ( ctx->text_surface ) {
+        fprintf(stderr, "clean previous text\n");
+        SDL_FreeSurface(ctx->text_surface);
+    }
+
+    text_location.x = 50;
+    text_location.y = 600;
+    ctx->text_surface = TTF_RenderText_Shaded(ctx->text_font, str,
+                            text_foreground, text_background);
+
+    SDL_BlitSurface(ctx->text_surface, NULL, ctx->screen, &text_location);
+    SDL_Flip(ctx->screen);
+
+    return 0;
 }
 
 //--------------------------------------------------------------------

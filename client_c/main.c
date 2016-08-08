@@ -13,6 +13,8 @@
 
 #include "display.h"
 
+#define SERVER_BUFFER_SIZE 64
+
 /** server command definition **/
 enum _server_command {
     SRV_CMD_CONNECT =   0x2,
@@ -23,7 +25,7 @@ typedef enum _server_command server_command_t;
 /** server message definition **/
 struct _server_message {
     uint8_t cmd;
-    char buffer[63];
+    char buffer[SERVER_BUFFER_SIZE];
 }__attribute__ ((packed)) ;
 typedef struct _server_message server_message_t;
 
@@ -44,7 +46,7 @@ typedef struct _client_message client_message_t;
 //--------------------------------------------------------------------
 // PROTOTYPES
 //--------------------------------------------------------------------
-int game_process(int sockfd);
+int game_process(int sockfd, const char * player);
 int connect_server(const char * server_addr, const char * server_port);
 
 //--------------------------------------------------------------------
@@ -54,7 +56,7 @@ int main(int argc, const char *argv[])
 {
     int rc, fd;
 
-    if ( argc < 3 ) {
+    if ( argc < 4 ) {
         fprintf(stderr, "usage");
         exit(1);
     }
@@ -71,7 +73,7 @@ int main(int argc, const char *argv[])
         exit(1);
     }
 
-    game_process(fd);
+    game_process(fd, argv[3]);
 
     close(rc);
 
@@ -128,7 +130,7 @@ int connect_server(const char * server_addr, const char * server_port)
 }
 
 //--------------------------------------------------------------------
-int game_process(int sockfd)
+int game_process(int sockfd, const char * player)
 {
     int rc, numbytes;
     char command;
@@ -137,17 +139,12 @@ int game_process(int sockfd)
     SDL_Event event;
 
     // sanity check
-    if ( sockfd <= 0 ) {
+    if ( sockfd <= 0 || ! player ) {
         return -1;
     }
 
-    printf("Enter your name: ");
     srv_msg.cmd = SRV_CMD_CONNECT;
-    rc = scanf("%62s", &srv_msg.buffer[0]);
-    if ( rc <= 0 ) {
-        fprintf(stderr, "cannot get username\n");
-        return -1;
-    }
+    strncpy(srv_msg.buffer, player, SERVER_BUFFER_SIZE);
 
     rc = send(sockfd, (char *)&srv_msg, sizeof(server_message_t), 0);
     if ( rc == -1 ) {
@@ -207,11 +204,9 @@ int game_process(int sockfd)
             }
             case CLT_CMD_DISPLAY_STR:
             {
-                printf("read string\n");
                 recv(sockfd, &buffer[0], 1, 0);
-                printf("read %d\n", buffer[0]);
                 recv(sockfd, &buffer[0], buffer[0], 0);
-                printf("%s\n", buffer);
+                display_text(&buffer[0]);
                 break;
             }
             default:
