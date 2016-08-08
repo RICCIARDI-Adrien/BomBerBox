@@ -20,4 +20,7 @@
 /** How wide the map is. */
 #define CONFIGURATION_MAP_COLUMNS_COUNT 20
 
+/** Destructible obstacles generation probability (see the code for the meaning of the value). */
+#define CONFIGURATION_DESTRUCTIBLE_OBSTACLES_GENERATION_PROBABILITY 35
+
 #endif
