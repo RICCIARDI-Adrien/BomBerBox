@@ -23,4 +23,7 @@
 /** Destructible obstacles generation probability (see the code for the meaning of the value). */
 #define CONFIGURATION_DESTRUCTIBLE_OBSTACLES_GENERATION_PROBABILITY 35
 
+/** The maximum length of a 'draw text' command message. */
+#define CONFIGURATION_COMMAND_DRAW_TEXT_MESSAGE_MAXIMUM_SIZE 255
+
 #endif

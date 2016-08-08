@@ -117,6 +117,13 @@ int NetworkGetEvent(int Socket, TNetworkEvent *Pointer_Event)
 	struct timeval Select_Timeout;
 	unsigned char Temp_Byte;
 	
+	// The player is not connected anymore, ignore him
+	if (Socket == -1)
+	{
+		*Pointer_Event = NETWORK_EVENT_NONE;
+		return 0;
+	}
+	
 	// Create the set of file descriptors (it must created for each call)
 	FD_ZERO(&File_Descriptors_Set);
 	FD_SET(Socket, &File_Descriptors_Set);
@@ -139,8 +146,6 @@ int NetworkGetEvent(int Socket, TNetworkEvent *Pointer_Event)
 		*Pointer_Event = NETWORK_EVENT_NONE;
 		return 0;
 	}
-	
-	// Process the event
 	
 	// TODO check for player deconnection
 	
@@ -166,40 +171,21 @@ int NetworkGetEvent(int Socket, TNetworkEvent *Pointer_Event)
 
 int NetworkSendCommandDrawTile(int Socket, int Tile_ID, int Row, int Column)
 {
-	unsigned char Temp_Byte;
+	unsigned char Command_Data[4];
 	
 	// The player is not connected anymore, ignore him
 	if (Socket == -1) return 0;
 	
+	// Prepare the command
+	Command_Data[0] = NETWORK_COMMAND_DRAW_TILE;
+	Command_Data[1] = (unsigned char) Tile_ID;
+	Command_Data[2] = (unsigned char) Row;
+	Command_Data[3] = (unsigned char) Column;
+	
 	// Send the command
-	Temp_Byte = NETWORK_COMMAND_DRAW_TILE;
-	if (write(Socket, &Temp_Byte, 1) != 1)
+	if (write(Socket, Command_Data, sizeof(Command_Data)) != sizeof(Command_Data))
 	{
 		printf("[%s:%d] Error : failed to send the 'draw tile' command (%s).\n", __FUNCTION__, __LINE__, strerror(errno));
-		return 1;
-	}
-	
-	// Send the tile ID
-	Temp_Byte = (unsigned char) Tile_ID;
-	if (write(Socket, &Temp_Byte, 1) != 1)
-	{
-		printf("[%s:%d] Error : failed to send the tile ID (%s).\n", __FUNCTION__, __LINE__, strerror(errno));
-		return 1;
-	}
-	
-	// Send the row coordinate
-	Temp_Byte = (unsigned char) Row;
-	if (write(Socket, &Temp_Byte, 1) != 1)
-	{
-		printf("[%s:%d] Error : failed to send the row coordinate (%s).\n", __FUNCTION__, __LINE__, strerror(errno));
-		return 1;
-	}
-	
-	// Send the column coordinate
-	Temp_Byte = (unsigned char) Column;
-	if (write(Socket, &Temp_Byte, 1) != 1)
-	{
-		printf("[%s:%d] Error : failed to send the column coordinate (%s).\n", __FUNCTION__, __LINE__, strerror(errno));
 		return 1;
 	}
 	
@@ -208,30 +194,23 @@ int NetworkSendCommandDrawTile(int Socket, int Tile_ID, int Row, int Column)
 
 int NetworkSendCommandDrawText(int Socket, char *String_Text)
 {
-	unsigned char Command = NETWORK_COMMAND_DRAW_TEXT, Text_Length;
+	unsigned char Command_Data[2 + CONFIGURATION_COMMAND_DRAW_TEXT_MESSAGE_MAXIMUM_SIZE];
+	int Text_Size, Command_Size;
 	
 	// The player is not connected anymore, ignore him
 	if (Socket == -1) return 0;
 	
+	// Prepare the command
+	Command_Data[0] = NETWORK_COMMAND_DRAW_TEXT;
+	Text_Size = strnlen(String_Text, CONFIGURATION_COMMAND_DRAW_TEXT_MESSAGE_MAXIMUM_SIZE);
+	Command_Data[1] = (unsigned char) Text_Size;
+	memcpy(&Command_Data[2], String_Text, Text_Size);
+	
 	// Send the command
-	if (write(Socket, &Command, 1) != 1)
+	Command_Size = 2 + Text_Size; // Compute the command total size in bytes
+	if (write(Socket, Command_Data, Command_Size) != Command_Size)
 	{
 		printf("[%s:%d] Error : failed to send the 'draw text' command (%s).\n", __FUNCTION__, __LINE__, strerror(errno));
-		return 1;
-	}
-	
-	// Send the text length
-	Text_Length = strnlen(String_Text, 255);
-	if (write(Socket, &Text_Length, 1) <= 0)
-	{
-		printf("[%s:%d] Error : failed to send the 'draw text' text length (%s).\n", __FUNCTION__, __LINE__, strerror(errno));
-		return 1;
-	}
-	
-	// Send the payload
-	if (write(Socket, String_Text, strlen(String_Text)) <= 0)
-	{
-		printf("[%s:%d] Error : failed to send the 'draw text' payload (%s).\n", __FUNCTION__, __LINE__, strerror(errno));
 		return 1;
 	}
 	
