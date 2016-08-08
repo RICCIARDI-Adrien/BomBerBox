@@ -126,7 +126,7 @@ int display_tile(int tid, int x, int y)
     }
 
     if ( ! ctx->tiles[tid] ) {
-        fprintf(stderr, "tile not found\n");
+        fprintf(stderr, "tile not found %d\n", tid);
         return -1;
     }
 
@@ -163,6 +163,9 @@ int _load_tiles(const char * path)
             continue;
         if (!strcmp (file->d_name, ".."))    
             continue;
+        if ( ! strstr(file->d_name, "png") ) {
+            continue;
+        }
 
         int tid = strtol(file->d_name, NULL, 0);
         if ( tid >= DISPLAY_MAX_TILES ) {
