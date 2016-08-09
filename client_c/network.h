@@ -31,4 +31,6 @@ enum _nw_cmd_input_value {
 };
 typedef enum _ui_cmd_input_value ui_cmd_input_value_t;
 
+int nw_get_action(nw_action_t * action);
+int nw_connect(const char * server_addr, const char * server_port);
 int nw_send_command(nw_command_type_t type, void * data, size_t size);
