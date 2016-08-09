@@ -143,4 +143,39 @@ void MapGetSpawnPointCoordinates(int Spawn_Point_Index, int *Pointer_Row, int *P
 	*Pointer_Row = Map_Spawn_Points_Coordinates[Spawn_Point_Index].Row;
 	*Pointer_Column = Map_Spawn_Points_Coordinates[Spawn_Point_Index].Column;
 }
+
+void MapSpawnItem(int Row, int Column)
+{
+	TMapCell *Pointer_Cell;
+	
+	// Cache cell address
+	Pointer_Cell = &Map[Row][Column];
+	
+	// Choose whether an item will spawn or not
+	if (rand() % 100 > CONFIGURATION_DESTRUCTIBLE_OBSTACLE_ITEM_SPAWNING_PERCENTAGE)
+	{
+		Pointer_Cell->Content = MAP_CELL_CONTENT_EMPTY;
+		Pointer_Cell->Tile_ID = GAME_TILE_ID_EMPTY;
+		return;
+	}
+	
+	// Select which item to spawn
+	switch (rand() % 3)
+	{
+		case 0:
+			Pointer_Cell->Content = MAP_CELL_CONTENT_ITEM_SHIELD;
+			Pointer_Cell->Tile_ID = GAME_TILE_ITEM_SHIELD;
+			break;
+			
+		case 1:
+			Pointer_Cell->Content = MAP_CELL_CONTENT_ITEM_POWER_UP_BOMB_RANGE;
+			Pointer_Cell->Tile_ID = GAME_TILE_ITEM_POWER_UP_BOMB_RANGE;
+			break;
+			
+		case 2:
+			Pointer_Cell->Content = MAP_CELL_CONTENT_ITEM_POWER_UP_BOMBS_COUNT;
+			Pointer_Cell->Tile_ID = GAME_TILE_ITEM_POWER_UP_BOMBS_COUNT;
+			break;
+	}
+}
 	

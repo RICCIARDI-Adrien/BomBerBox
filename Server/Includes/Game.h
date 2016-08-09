@@ -33,8 +33,9 @@ typedef enum
 	GAME_TILE_BOMB,
 	GAME_TILE_EXPLOSION,
 	GAME_TILE_ITEM_GHOST,
-	GAME_TILE_ITEM_POWER_UP,
-	GAME_TILE_ITEM_SHIELD
+	GAME_TILE_ITEM_SHIELD,
+	GAME_TILE_ITEM_POWER_UP_BOMB_RANGE,
+	GAME_TILE_ITEM_POWER_UP_BOMBS_COUNT
 } TGameTileID;
 
 //-------------------------------------------------------------------------------------------------

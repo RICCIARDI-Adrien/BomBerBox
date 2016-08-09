@@ -20,7 +20,10 @@ typedef enum
 	MAP_CELL_CONTENT_DESTRUCTIBLE_OBSTACLE, //!< The obstacle can be broken by a bomb.
 	MAP_CELL_CONTENT_PLAYER_SPAWN_POINT, //!< A player can spawn here.
 	MAP_CELL_CONTENT_NO_DESTRUCTIBLE_OBSTACLE_ZONE, //!< No destructible obstacle can be spawn here.
-	MAP_CELL_CONTENT_BOMB //!< A bomb is here.
+	MAP_CELL_CONTENT_BOMB, //!< A bomb is here.
+	MAP_CELL_CONTENT_ITEM_SHIELD, //!< The cell contains a shield.
+	MAP_CELL_CONTENT_ITEM_POWER_UP_BOMB_RANGE, //!< Improve the player bombs explosion range.
+	MAP_CELL_CONTENT_ITEM_POWER_UP_BOMBS_COUNT //!< The player can carry one more bomb.
 } TMapCellContent;
 
 /** All states an exploding cell can take. */
@@ -70,6 +73,10 @@ int MapGetSpawnPointsCount(void);
  */
 void MapGetSpawnPointCoordinates(int Spawn_Point_Index, int *Pointer_Row, int *Pointer_Column);
 
-// MapSpawnItem 
+/** Randomly spawn an item (or nothing) at the specified location.
+ * @param Row The Y location.
+ * @param Column The X location.
+ */
+void MapSpawnItem(int Row, int Column);
 
 #endif

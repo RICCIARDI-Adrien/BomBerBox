@@ -76,7 +76,7 @@ static inline void GameSpawnPlayers(void)
 		
 		// Initialize bombs
 		Game_Players[i].Is_Bomb_Available = 1;
-		Game_Players[i].Explosion_Range = 10; // TEST, TODO set to 1
+		Game_Players[i].Explosion_Range = 1;
 		
 		// Tell the clients to display the player
 		for (j = 0; j < Game_Players_Count; j++)
@@ -345,7 +345,7 @@ static inline void GameHandleBombs(void)
 {
 	int Row, Column, i;
 	TMapCell *Pointer_Cell;
-	TGameTileID Tile_ID;
+	TGameTileID Tile_ID = GAME_TILE_ID_EMPTY;
 	
 	for (Row = 0; Row < CONFIGURATION_MAP_ROWS_COUNT; Row++)
 	{
@@ -373,9 +373,9 @@ static inline void GameHandleBombs(void)
 				// Reschedule the timer
 				Pointer_Cell->Explosion_Timer = CONFIGURATION_BOMB_EXPLOSION_PROPAGATION_TIME;
 			}
+			// The explosion has just finished
 			else
 			{
-				Tile_ID = GAME_TILE_ID_EMPTY;
 				Pointer_Cell->Explosion_State = MAP_EXPLOSION_STATE_NO_BOMB;
 				
 				// Was this cell containing the bomb ?
@@ -386,6 +386,16 @@ static inline void GameHandleBombs(void)
 					
 					// The player has now a new ready bomb
 					Pointer_Cell->Pointer_Owner_Player->Is_Bomb_Available = 1; // This pointer is valid only for the cell containing the bomb itself
+					
+					Tile_ID = GAME_TILE_ID_EMPTY;
+				}
+				// Remove a destructible obstacle
+				else if (Pointer_Cell->Content == MAP_CELL_CONTENT_DESTRUCTIBLE_OBSTACLE)
+				{
+					// Randomly spawn an item (or nothing)
+					MapSpawnItem(Row, Column);
+					
+					Tile_ID = Pointer_Cell->Tile_ID;
 				}
 			}
 			
