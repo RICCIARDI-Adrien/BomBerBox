@@ -1,15 +1,15 @@
-S                   
+SN                NS
+NN                NN
                     
-                    
-WWW                 
-W            S      
-W                   
-W                   
-            WWWW WWW
-                    
+WWW         NNN     
+W           NSN     
+W           NNN     
+WN             NNN  
+SN          WWWWSWWW
+NN             NNN  
    WW               
                     
-                    
-                    
-                    
-S                  S
+           NNN      
+           NSN W    
+NN         NNN W  NN
+SN             W  NS

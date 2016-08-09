@@ -8,16 +8,29 @@
 #include <fcntl.h>
 #include <Map.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
 
 //-------------------------------------------------------------------------------------------------
+// Private types
+//-------------------------------------------------------------------------------------------------
+/** A cell coordinates in the map. */
+typedef struct
+{
+	int Row;
+	int Column;
+} TMapCellCoordinate;
+
+//-------------------------------------------------------------------------------------------------
 // Private variables
 //-------------------------------------------------------------------------------------------------
 /** How many spawn points the last loaded map have. */
 static int Map_Spawn_Points_Count;
+/** The spawn points location. */
+static TMapCellCoordinate Map_Spawn_Points_Coordinates[CONFIGURATION_MAXIMUM_PLAYERS_COUNT];
 
 //-------------------------------------------------------------------------------------------------
 // Public variables
@@ -62,8 +75,17 @@ int MapLoad(char *String_File_Path)
 			switch (Character)
 			{
 				case ' ':
-					Map[Row][Column].Content = MAP_CELL_CONTENT_EMPTY;
-					Map[Row][Column].Tile_ID = GAME_TILE_ID_EMPTY;
+					// Generate or not a destructible object in this empty cell
+					if (rand() % 100 < CONFIGURATION_DESTRUCTIBLE_OBSTACLES_GENERATION_PERCENTAGE)
+					{
+						Map[Row][Column].Content = MAP_CELL_CONTENT_DESTRUCTIBLE_OBSTACLE;
+						Map[Row][Column].Tile_ID = GAME_TILE_ID_DESTRUCTIBLE_OBSTACLE;
+					}
+					else
+					{
+						Map[Row][Column].Content = MAP_CELL_CONTENT_EMPTY;
+						Map[Row][Column].Tile_ID = GAME_TILE_ID_EMPTY;
+					}
 					break;
 					
 				case 'W':
@@ -79,7 +101,16 @@ int MapLoad(char *String_File_Path)
 				case 'S':
 					Map[Row][Column].Content = MAP_CELL_CONTENT_PLAYER_SPAWN_POINT;
 					Map[Row][Column].Tile_ID = GAME_TILE_ID_EMPTY;
+					
+					// Store the spawn point coordinates
+					Map_Spawn_Points_Coordinates[Map_Spawn_Points_Count].Row = Row;
+					Map_Spawn_Points_Coordinates[Map_Spawn_Points_Count].Column = Column;
 					Map_Spawn_Points_Count++;
+					break;
+					
+				case 'N':
+					Map[Row][Column].Content = MAP_CELL_CONTENT_NO_DESTRUCTIBLE_OBSTACLE_ZONE;
+					Map[Row][Column].Tile_ID = GAME_TILE_ID_EMPTY;
 					break;
 					
 				default:
@@ -89,8 +120,8 @@ int MapLoad(char *String_File_Path)
 			}
 		}
 	}
-	
 	close(File_Descriptor);
+	
 	return 0;
 }
 
@@ -98,3 +129,53 @@ int MapGetSpawnPointsCount(void)
 {
 	return Map_Spawn_Points_Count;
 }
+
+void MapGetSpawnPointCoordinates(int Spawn_Point_Index, int *Pointer_Row, int *Pointer_Column)
+{
+	// Make sure the spawn point is existing
+	if (Spawn_Point_Index > Map_Spawn_Points_Count)
+	{
+		*Pointer_Row = 0;
+		*Pointer_Column = 0;
+		return;
+	}
+	
+	*Pointer_Row = Map_Spawn_Points_Coordinates[Spawn_Point_Index].Row;
+	*Pointer_Column = Map_Spawn_Points_Coordinates[Spawn_Point_Index].Column;
+}
+
+void MapSpawnItem(int Row, int Column)
+{
+	TMapCell *Pointer_Cell;
+	
+	// Cache cell address
+	Pointer_Cell = &Map[Row][Column];
+	
+	// Choose whether an item will spawn or not
+	if (rand() % 100 > CONFIGURATION_DESTRUCTIBLE_OBSTACLE_ITEM_SPAWNING_PERCENTAGE)
+	{
+		Pointer_Cell->Content = MAP_CELL_CONTENT_EMPTY;
+		Pointer_Cell->Tile_ID = GAME_TILE_ID_EMPTY;
+		return;
+	}
+	
+	// Select which item to spawn
+	switch (rand() % 3)
+	{
+		case 0:
+			Pointer_Cell->Content = MAP_CELL_CONTENT_ITEM_SHIELD;
+			Pointer_Cell->Tile_ID = GAME_TILE_ITEM_SHIELD;
+			break;
+			
+		case 1:
+			Pointer_Cell->Content = MAP_CELL_CONTENT_ITEM_POWER_UP_BOMB_RANGE;
+			Pointer_Cell->Tile_ID = GAME_TILE_ITEM_POWER_UP_BOMB_RANGE;
+			break;
+			
+		case 2:
+			Pointer_Cell->Content = MAP_CELL_CONTENT_ITEM_POWER_UP_BOMBS_COUNT;
+			Pointer_Cell->Tile_ID = GAME_TILE_ITEM_POWER_UP_BOMBS_COUNT;
+			break;
+	}
+}
+	

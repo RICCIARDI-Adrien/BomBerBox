@@ -1,0 +1,5 @@
+ * dependencies
+    sudo apt-get install libsdl1.2-dev libsdl-image1.2-dev libsdl-ttf2.0-dev
+ * compile & run 
+    make
+    ./bomber 192.168.100.223 1234 <username>

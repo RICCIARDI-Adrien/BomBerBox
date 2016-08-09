@@ -9,6 +9,7 @@
 #include <Network.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 
 //-------------------------------------------------------------------------------------------------
 // Entry point
@@ -34,6 +35,9 @@ int main(int argc, char *argv[])
 		printf("[%s:%d] Error : minimum expected players are 2, maximum expected players are %d.\n", __FUNCTION__, __LINE__, CONFIGURATION_MAXIMUM_PLAYERS_COUNT);
 		return EXIT_FAILURE;
 	}
+	
+	// Initialize random numbers generator
+	srand(time(NULL));
 	
 	// Try to load the map
 	if (MapLoad(String_Map_File) != 0)

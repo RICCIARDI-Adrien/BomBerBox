@@ -6,6 +6,7 @@
 #include <arpa/inet.h>
 #include <Configuration.h>
 #include <errno.h>
+#include <Game.h>
 #include <netinet/in.h>
 #include <Network.h>
 #include <stdio.h>
@@ -110,23 +111,30 @@ int NetworkWaitForPlayerConnection(int *Pointer_Player_Socket, char *Pointer_Pla
 	return 0;
 }
 
-int NetworkGetEvent(int Socket, TNetworkEvent *Pointer_Event)
+int NetworkGetEvent(TGamePlayer *Pointer_Player, TNetworkEvent *Pointer_Event)
 {
 	int Events_Count;
 	fd_set File_Descriptors_Set;
 	struct timeval Select_Timeout;
-	unsigned char Temp_Byte;
+	unsigned char Command_Data[2];
+	
+	// Ignore dead players
+	if (!Pointer_Player->Is_Alive)
+	{
+		*Pointer_Event = NETWORK_EVENT_NONE;
+		return 0;
+	}
 	
 	// Create the set of file descriptors (it must created for each call)
 	FD_ZERO(&File_Descriptors_Set);
-	FD_SET(Socket, &File_Descriptors_Set);
+	FD_SET(Pointer_Player->Socket, &File_Descriptors_Set);
 		
 	// Set the timeout value to zero to make select() instantly return (it must be reset each time too)
 	Select_Timeout.tv_sec = 0;
 	Select_Timeout.tv_usec = 0;
 	
 	// Use select() as it can poll a blocking socket without blocking the program
-	Events_Count = select(Socket + 1, &File_Descriptors_Set, NULL, NULL, &Select_Timeout);
+	Events_Count = select(Pointer_Player->Socket + 1, &File_Descriptors_Set, NULL, NULL, &Select_Timeout);
 	if (Events_Count == -1)
 	{
 		printf("[%s:%d] Error : select() failed (%s).\n", __FUNCTION__, __LINE__, strerror(errno));
@@ -140,84 +148,56 @@ int NetworkGetEvent(int Socket, TNetworkEvent *Pointer_Event)
 		return 0;
 	}
 	
-	// Process the event
-	
 	// TODO check for player deconnection
 	
-	// Retrieve the event content
 	// Get the command
-	if (read(Socket, &Temp_Byte, 1) != 1)
+	if (read(Pointer_Player->Socket, Command_Data, sizeof(Command_Data)) != sizeof(Command_Data))
 	{
-		printf("[%s:%d] Error : failed to read the event command (%s).\n", __FUNCTION__, __LINE__, strerror(errno));
+		printf("[%s:%d] Error : failed to receive the 'get event' command (%s).\n", __FUNCTION__, __LINE__, strerror(errno));
 		return 1;
 	}
-	// TODO check on the command if several commands exist one day
-	
-	// Get the event
-	if (read(Socket, &Temp_Byte, 1) != 1)
-	{
-		printf("[%s:%d] Error : failed to read the event (%s).\n", __FUNCTION__, __LINE__, strerror(errno));
-		return 1;
-	}
-	*Pointer_Event = Temp_Byte;
+	// Retrieve the event content
+	*Pointer_Event = Command_Data[1];
 	
 	return 0;
 }
 
-int NetworkSendCommandDrawTile(int Socket, int Tile_ID, int Row, int Column)
+int NetworkSendCommandDrawTile(TGamePlayer *Pointer_Player, int Tile_ID, int Row, int Column)
 {
-	unsigned char Temp_Byte;
+	unsigned char Command_Data[4];
+	
+	// Prepare the command
+	Command_Data[0] = NETWORK_COMMAND_DRAW_TILE;
+	Command_Data[1] = (unsigned char) Tile_ID;
+	Command_Data[2] = (unsigned char) Row;
+	Command_Data[3] = (unsigned char) Column;
 	
 	// Send the command
-	Temp_Byte = NETWORK_COMMAND_DRAW_TILE;
-	if (write(Socket, &Temp_Byte, 1) != 1)
+	if (write(Pointer_Player->Socket, Command_Data, sizeof(Command_Data)) != sizeof(Command_Data))
 	{
 		printf("[%s:%d] Error : failed to send the 'draw tile' command (%s).\n", __FUNCTION__, __LINE__, strerror(errno));
 		return 1;
 	}
 	
-	// Send the tile ID
-	Temp_Byte = (unsigned char) Tile_ID;
-	if (write(Socket, &Temp_Byte, 1) != 1)
-	{
-		printf("[%s:%d] Error : failed to send the tile ID (%s).\n", __FUNCTION__, __LINE__, strerror(errno));
-		return 1;
-	}
-	
-	// Send the row coordinate
-	Temp_Byte = (unsigned char) Row;
-	if (write(Socket, &Temp_Byte, 1) != 1)
-	{
-		printf("[%s:%d] Error : failed to send the row coordinate (%s).\n", __FUNCTION__, __LINE__, strerror(errno));
-		return 1;
-	}
-	
-	// Send the column coordinate
-	Temp_Byte = (unsigned char) Column;
-	if (write(Socket, &Temp_Byte, 1) != 1)
-	{
-		printf("[%s:%d] Error : failed to send the column coordinate (%s).\n", __FUNCTION__, __LINE__, strerror(errno));
-		return 1;
-	}
-	
 	return 0;
 }
 
-int NetworkSendCommandDrawText(int Socket, char *String_Text)
+int NetworkSendCommandDrawText(TGamePlayer *Pointer_Player, char *String_Text)
 {
-	unsigned char Command = NETWORK_COMMAND_DRAW_TEXT;
+	unsigned char Command_Data[2 + CONFIGURATION_COMMAND_DRAW_TEXT_MESSAGE_MAXIMUM_SIZE];
+	int Text_Size, Command_Size;
+	
+	// Prepare the command
+	Command_Data[0] = NETWORK_COMMAND_DRAW_TEXT;
+	Text_Size = strnlen(String_Text, CONFIGURATION_COMMAND_DRAW_TEXT_MESSAGE_MAXIMUM_SIZE);
+	Command_Data[1] = (unsigned char) Text_Size;
+	memcpy(&Command_Data[2], String_Text, Text_Size);
 	
 	// Send the command
-	if (write(Socket, &Command, 1) != 1)
+	Command_Size = 2 + Text_Size; // Compute the command total size in bytes
+	if (write(Pointer_Player->Socket, Command_Data, Command_Size) != Command_Size)
 	{
 		printf("[%s:%d] Error : failed to send the 'draw text' command (%s).\n", __FUNCTION__, __LINE__, strerror(errno));
-		return 1;
-	}
-	
-	// Send the payload
-	if (write(Socket, String_Text, strlen(String_Text)) <= 0)
-	{
-		printf("[%s:%d] Error : failed to send the 'draw text' payload (%s).\n", __FUNCTION__, __LINE__, strerror(errno));
 		return 1;
 	}
 	
