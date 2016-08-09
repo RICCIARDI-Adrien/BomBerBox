@@ -10,7 +10,7 @@
 // Constants
 //-------------------------------------------------------------------------------------------------
 /** How many players can play in the same time. */
-#define CONFIGURATION_MAXIMUM_PLAYERS_COUNT 4
+#define CONFIGURATION_MAXIMUM_PLAYERS_COUNT 8
 
 /** How long can be a player name. */
 #define CONFIGURATION_MAXIMUM_PLAYER_NAME_LENGTH 64
