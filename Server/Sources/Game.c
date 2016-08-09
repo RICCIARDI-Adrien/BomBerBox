@@ -264,7 +264,7 @@ void GameLoop(int Expected_Players_Count)
 	printf("Players spawned.\n");
 	
 	// Tell all clients that game is ready
-	for (i = 0; i < Game_Players_Count; i++) NetworkSendCommandDrawText(Game_Players[i].Socket, "Successfully connected. Waiting for others...");
+	for (i = 0; i < Game_Players_Count; i++) NetworkSendCommandDrawText(Game_Players[i].Socket, "Go !");
 	printf("Launching game.\n");
 	
 	while (1) // TEST, TODO clean exit
