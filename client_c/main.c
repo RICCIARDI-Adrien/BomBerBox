@@ -1,53 +1,85 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
-#include <netdb.h>
 #include <sys/types.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
 
-#include <arpa/inet.h>
-#include <SDL/SDL.h>
-
-#include "display.h"
-
-#define SERVER_BUFFER_SIZE 64
-
-/** server command definition **/
-enum _server_command {
-    SRV_CMD_CONNECT =   0x2,
-    SRV_CMD_INPUT   =   0x3,
-};
-typedef enum _server_command server_command_t;
-
-/** server message definition **/
-struct _server_message {
-    uint8_t cmd;
-    char buffer[SERVER_BUFFER_SIZE];
-}__attribute__ ((packed)) ;
-typedef struct _server_message server_message_t;
-
-/** client command definition **/
-enum _client_command {
-    CLT_CMD_DISPLAY_TILE    =   0x0,
-    CLT_CMD_DISPLAY_STR     =   0x1,
-};
-typedef enum _client_command client_command_t;
-
-/** client message definition **/
-struct _client_message {
-    uint8_t cmd;
-    char buffer[254];
-}__attribute__ ((packed)) ;
-typedef struct _client_message client_message_t;
+#include "ui.h"
+#include "network.h"
 
 //--------------------------------------------------------------------
-// PROTOTYPES
+// PRIVATE API
 //--------------------------------------------------------------------
-int game_process(int sockfd, const char * player);
-int connect_server(const char * server_addr, const char * server_port);
+int game_process(void)
+{
+    int rc;
+    ui_event_t event;
+    nw_action_t action;
+
+    while (1) {
+        // process user interface
+        rc = ui_event(&event);
+        if ( rc > 0 ) {
+            if ( event.type == UI_EVENT_KEYBOARD ) {
+                // process keyboard event
+                _game_keyboard_ingame(event.value);
+            }
+        }
+
+        // process server commands
+        rc = nw_get_action(&action);
+        if ( rc > 0 ) {
+            if ( action.type == NW_ACTION_DISPLAY_TILE ) {
+                ui_tile(action.data[0], 25 + action.data[2] * 32, 87 + action.data[1] * 32);
+            } else if ( action.type == NW_ACTION_DISPLAY_STR ) {
+                ui_text(action.data);
+            }
+        }
+
+        usleep(100);
+    }
+}
+
+//--------------------------------------------------------------------
+int _game_keyboard_ingame(ui_keyboard_value_t value)
+{
+    int rc = 0;
+    uint8_t data;
+
+    switch(value) {
+        case UI_KEYBOARD_UP:
+            data = NW_COMMAND_INPUT_UP;
+            rc = nw_send_command(NW_COMMAND_INPUT, &data, 1);
+            break;
+        case UI_KEYBOARD_DOWN:
+            data = NW_COMMAND_INPUT_DOWN;
+            rc = nw_send_command(NW_COMMAND_INPUT, &data, 1);
+            break;
+        case UI_KEYBOARD_LEFT:
+            data = NW_COMMAND_INPUT_LEFT;
+            rc = nw_send_command(NW_COMMAND_INPUT, &data, 1);
+            break;
+        case UI_KEYBOARD_RIGHT:
+            data = NW_COMMAND_INPUT_RIGHT;
+            rc = nw_send_command(NW_COMMAND_INPUT, &data, 1);
+            break;
+        case UI_KEYBOARD_SPACE:
+            data = NW_COMMAND_INPUT_SPACE;
+            rc = nw_send_command(NW_COMMAND_INPUT, &data, 1);
+            break;
+        case UI_KEYBOARD_ESCAPE:
+            // TODO: currently dirty exit
+            exit(1);
+            break;
+        default:
+            break;
+    }
+
+    return rc;
+}
+
 
 //--------------------------------------------------------------------
 // PUBLIC API
@@ -61,159 +93,23 @@ int main(int argc, const char *argv[])
         exit(1);
     }
 
-    fd = connect_server(argv[1], argv[2]);
-    if ( fd < 0 ) {
+    rc = nw_connect(argv[1], argv[2], argv[3]);
+    if ( rc ) {
         fprintf(stderr, "cannot connect to server %s:%d", argv[1], atoi(argv[2]));
         exit(1);
     }
   
-    rc = display_init();
+    rc = ui_init();
     if ( rc < 0 ) {
-        fprintf(stderr, "cannot init display");
+        fprintf(stderr, "cannot init ui");
         exit(1);
     }
+    
+    // TODO: must be done as a part of game process
+    rc = nw_send_command(NW_COMMAND_CONNECT, (char *)argv[3], strlen(argv[3]));
 
-    game_process(fd, argv[3]);
+    rc = game_process();
 
-    close(rc);
-
-    return 0;
-}
-
-//--------------------------------------------------------------------
-int connect_server(const char * server_addr, const char * server_port)
-{
-    int sockfd, numbytes;  
-    struct addrinfo hints, *servinfo, *p;
-    int rv;
-    char s[INET6_ADDRSTRLEN];
-
-    if ( ! server_addr || ! server_port) {
-        fprintf(stderr,"usage: client hostname\n");
-        return -1;
-    }
-
-    memset(&hints, 0, sizeof hints);
-    hints.ai_family = AF_UNSPEC;
-    hints.ai_socktype = SOCK_STREAM;
-
-    if ((rv = getaddrinfo(server_addr, server_port, &hints, &servinfo)) != 0) {
-        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
-        return -1;
-    }
-
-    // loop through all the results and connect to the first we can
-    for(p = servinfo; p != NULL; p = p->ai_next) {
-        if ((sockfd = socket(p->ai_family, p->ai_socktype,
-                p->ai_protocol)) == -1) {
-            perror("client: socket");
-            continue;
-        }
-
-        if (connect(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
-            close(sockfd);
-            perror("client: connect");
-            continue;
-        }
-
-        break;
-    }
-
-    if ( ! p ) {
-        fprintf(stderr, "client: failed to connect\n");
-        return -1;
-    }
-
-    freeaddrinfo(servinfo); // all done with this structure
-
-    return sockfd;
-}
-
-//--------------------------------------------------------------------
-int game_process(int sockfd, const char * player)
-{
-    int rc, numbytes;
-    char command;
-    uint8_t buffer[255];
-    server_message_t srv_msg;
-    SDL_Event event;
-
-    // sanity check
-    if ( sockfd <= 0 || ! player ) {
-        return -1;
-    }
-
-    srv_msg.cmd = SRV_CMD_CONNECT;
-    strncpy(srv_msg.buffer, player, SERVER_BUFFER_SIZE);
-
-    rc = send(sockfd, (char *)&srv_msg, sizeof(server_message_t), 0);
-    if ( rc == -1 ) {
-        perror("send");
-        return -1;
-    }
-
-    while (1) {
-        rc = SDL_PollEvent(&event);
-        if ( rc ) {
-            if ( event.type == SDL_KEYDOWN )
-            {
-                SDLKey keyPressed = event.key.keysym.sym;
-                srv_msg.cmd = SRV_CMD_INPUT;
-
-                switch (keyPressed)
-                {
-                    case SDLK_UP:
-                        srv_msg.buffer[0] = 0;
-                        break;
-                    case SDLK_DOWN:
-                        srv_msg.buffer[0] = 1;
-                        break;
-                    case SDLK_LEFT:
-                        srv_msg.buffer[0] = 2;
-                        break;
-                    case SDLK_RIGHT:
-                        srv_msg.buffer[0] = 3;
-                        break;
-                    case SDLK_SPACE:
-                        srv_msg.buffer[0] = 4;
-                        break;
-                    case SDLK_ESCAPE:
-                        exit(1);
-                        break;
-                }
-                
-                rc = send(sockfd, (char *)&srv_msg, sizeof(uint16_t), 0);
-            }
-        }
-
-        numbytes = recv(sockfd, &command, 1, MSG_DONTWAIT);
-        if ( numbytes < 0 ) {
-            if ( errno == EAGAIN || errno == EWOULDBLOCK ) continue;
-            perror("recv");
-            return -1;
-        }
-       
-
- 
-        switch(command) {
-            case CLT_CMD_DISPLAY_TILE:
-            {
-                recv(sockfd, &buffer[0], 3, 0);
-                display_tile(buffer[0], 25 + buffer[2] * 32, 87 + buffer[1] * 32);
-                break;
-            }
-            case CLT_CMD_DISPLAY_STR:
-            {
-                recv(sockfd, &buffer[0], 1, 0);
-                recv(sockfd, &buffer[0], buffer[0], 0);
-                display_text(&buffer[0]);
-                break;
-            }
-            default:
-            {
-                continue;
-            }
-        }
-    }
+    return rc;
 }
 
