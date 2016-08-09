@@ -125,6 +125,24 @@ static inline int GameIsPlayerMoveAllowed(TGamePlayer *Pointer_Player, TMapCellC
 	return 1;
 }
 
+/** Tell all clients to display the specified player (automatically choose the right player tile according to the client).
+ * @param Pointer_Player The player to display.
+ */
+static inline void GameDisplayPlayer(TGamePlayer *Pointer_Player)
+{
+	int i;
+	TGameTileID Tile_ID;
+	
+	for (i = 0; i < Game_Players_Count; i++)
+	{
+		// Select the right tile to send according to the destination client
+		if (Game_Players[i].Socket == Pointer_Player->Socket) Tile_ID = GAME_TILE_ID_CURRENT_PLAYER;
+		else Tile_ID = GAME_TILE_ID_OTHER_PLAYER;
+	
+		NetworkSendCommandDrawTile(Game_Players[i].Socket, Tile_ID, Pointer_Player->Row, Pointer_Player->Column);
+	}
+}
+
 /** Process a received event for a specific player.
  * @param Pointer_Player The player that has received an event.
  * @param Event The event received from the player.
@@ -133,7 +151,6 @@ static inline void GameProcessEvents(TGamePlayer *Pointer_Player, TNetworkEvent 
 {
 	TMapCellContent Cell_Content;
 	int Has_Player_Moved = 0, Player_Previous_Row = 0, Player_Previous_Column = 0, i;
-	TGameTileID Tile_ID;
 	
 	switch (Event)
 	{
@@ -205,18 +222,24 @@ static inline void GameProcessEvents(TGamePlayer *Pointer_Player, TNetworkEvent 
 	{
 		// TODO get item if there is one on the cell
 		
-		// Tell all clients to erase the player trace
+		// Tell all clients to erase the player trace (prevous trace must always be erased because some player tile is thinner than other and superposition is visible)
 		for (i = 0; i < Game_Players_Count; i++) NetworkSendCommandDrawTile(Game_Players[i].Socket, GAME_TILE_ID_EMPTY, Player_Previous_Row, Player_Previous_Column);
 		
-		// Tell all clients to draw the player tile (drawing all tiles after having erased all traces grants that one player tile is not erased by another player move because of erasing order)
-		for (i = 0; i < Game_Players_Count; i++)
+		// TODO bomb
+		// else
 		{
-			// Select the right tile to send according to the destination client
-			if (Game_Players[i].Socket == Pointer_Player->Socket) Tile_ID = GAME_TILE_ID_CURRENT_PLAYER;
-			else Tile_ID = GAME_TILE_ID_OTHER_PLAYER;
-		
-			NetworkSendCommandDrawTile(Game_Players[i].Socket, Tile_ID, Pointer_Player->Row, Pointer_Player->Column);
+			for (i = 0; i < Game_Players_Count; i++)
+			{
+				if ((Game_Players[i].Socket != Pointer_Player->Socket) && (Game_Players[i].Row == Player_Previous_Row) && (Game_Players[i].Column == Player_Previous_Column))
+				{
+					GameDisplayPlayer(&Game_Players[i]); // As all enemy players are identical, only one must be drawn even if several players are located on the same map cell
+					break;
+				}
+			}
 		}
+
+		// Draw the player at his new location
+		GameDisplayPlayer(Pointer_Player);
 	}
 }
 
