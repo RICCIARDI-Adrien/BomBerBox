@@ -347,7 +347,7 @@ static inline void GameHandleBombs(void)
 {
 	int Row, Column, i;
 	TMapCell *Pointer_Cell;
-	TGameTileID Tile_ID = GAME_TILE_ID_EMPTY;
+	TGameTileID Tile_ID;
 	
 	for (Row = 0; Row < CONFIGURATION_MAP_ROWS_COUNT; Row++)
 	{
@@ -399,6 +399,8 @@ static inline void GameHandleBombs(void)
 					
 					Tile_ID = Pointer_Cell->Tile_ID;
 				}
+				// The cell was empty, let it empty
+				else Tile_ID = GAME_TILE_ID_EMPTY;
 				
 				// Handle player collision with bomb flames
 				// Is there one or more player(s) on this cell ?
