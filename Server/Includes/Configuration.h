@@ -26,4 +26,9 @@
 /** The maximum length of a 'draw text' command message. */
 #define CONFIGURATION_COMMAND_DRAW_TEXT_MESSAGE_MAXIMUM_SIZE 255
 
+/** How long a bomb will remain before exploding. */
+#define CONFIGURATION_BOMB_EXPLOSION_TIMER 2000000 // TODO use timer units
+/** How long should an explosion tile be displayed. */
+#define CONFIGURATION_BOMB_EXPLOSION_PROPAGATION_TIME 1000000 // TODO use timer units
+
 #endif

@@ -1,7 +1,5 @@
 CC = gcc
-CCFLAGS = -W -Wall -O2
-# Enable at the development end
-# -Werror
+CCFLAGS = -W -Wall -Werror -O2
 
 INCLUDES_PATH = Includes
 SOURCES_PATH = Sources

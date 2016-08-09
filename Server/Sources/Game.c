@@ -11,32 +11,6 @@
 #include <time.h>
 
 //-------------------------------------------------------------------------------------------------
-// Private types
-//-------------------------------------------------------------------------------------------------
-/** A player attributes. */
-typedef struct
-{
-	char Name[CONFIGURATION_MAXIMUM_PLAYER_NAME_LENGTH]; //!< The player name.
-	int Socket; //<! The network socket used to communicate with the client.
-	int Row; //!< The player Y location on the map.
-	int Column; //!< The player X location on the map.
-	int Is_Bomb_Available; //!< Tell if the player can use a bomb or not.
-	int Explosion_Range; //!< How many cells an explosion can reach.
-	int New_Bomb_Available_Timer;
-	// TODO bonus items
-	int Is_Ghost_Mode_Enabled; //!< Tell if the player can cross the destructible objects or not.
-} TGamePlayer;
-
-/** A bomb item. */
-typedef struct
-{
-	//TODO Explosion_Timer
-	int Row; //!< The bomb Y location on the map.
-	int Column; //!< The bomb X location on the map.
-	int Owning_Player_ID; //!< Tell which player thrown the bomb.
-} TGameBomb;
-
-//-------------------------------------------------------------------------------------------------
 // Private variables
 //-------------------------------------------------------------------------------------------------
 /** All players. */
@@ -160,7 +134,7 @@ static inline void GameProcessEvents(TGamePlayer *Pointer_Player, TNetworkEvent 
 {
 	TMapCellContent Cell_Content;
 	TMapCell *Pointer_Cell;
-	int Has_Player_Moved = 0, Player_Previous_Row = 0, Player_Previous_Column = 0, i;
+	int Has_Player_Moved = 0, Player_Previous_Row = 0, Player_Previous_Column = 0, i, Row, Column;
 	
 	switch (Event)
 	{
@@ -224,35 +198,109 @@ static inline void GameProcessEvents(TGamePlayer *Pointer_Player, TNetworkEvent 
 			// Can the player drop a bomb ?
 			if (!Pointer_Player->Is_Bomb_Available) return;
 			
+			// Cache the cell address
+			Pointer_Cell = &Map[Pointer_Player->Row][Pointer_Player->Column];
+			
+			// Only one bomb can be placed in a cell
+			if (Pointer_Cell->Content == MAP_CELL_CONTENT_BOMB) return;
+			
 			// Put the bomb at this location on the map
-			Map[Pointer_Player->Row][Pointer_Player->Column].Content = MAP_CELL_CONTENT_BOMB;
+			Pointer_Cell->Content = MAP_CELL_CONTENT_BOMB;
+			// Store whom player dropped the bomb
+			Pointer_Cell->Pointer_Owner_Player = Pointer_Player;
+			
+			// Initialize the explosion timers
+			// Explosion center (the cell where the bomb is dropped)
+			Pointer_Cell->Explosion_Timer = CONFIGURATION_BOMB_EXPLOSION_TIMER;
+			Pointer_Cell->Explosion_State = MAP_EXPLOSION_STATE_DISPLAY_EXPLOSION_TILE;
+			
+			// Center to up explosion propagation
+			Row = Pointer_Player->Row;
+			for (i = 1; i <= Pointer_Player->Explosion_Range; i++) // Start from 1 to bypass the explosion center (no need to set it more than once)
+			{
+				// Stop when hitting the map border
+				Row--;
+				if (Row < 0) break;
+				
+				// Stop when hitting a wall
+				Pointer_Cell = &Map[Row][Pointer_Player->Column]; // Cache cell address for a faster access
+				if (Pointer_Cell->Content == MAP_CELL_CONTENT_WALL) break;
+				
+				// Program the explosion
+				Pointer_Cell->Explosion_Timer = CONFIGURATION_BOMB_EXPLOSION_TIMER + (i * CONFIGURATION_BOMB_EXPLOSION_PROPAGATION_TIME);
+				Pointer_Cell->Explosion_State = MAP_EXPLOSION_STATE_DISPLAY_EXPLOSION_TILE;
+				
+				// Stop after having hit a destructible obstacle (only one destructible obstacle must be destroyed by the bomb)
+				if (Pointer_Cell->Content == MAP_CELL_CONTENT_DESTRUCTIBLE_OBSTACLE) break;
+			}
+			
+			// Center to down explosion propagation
+			Row = Pointer_Player->Row;
+			for (i = 1; i <= Pointer_Player->Explosion_Range; i++) // Start from 1 to bypass the explosion center (no need to set it more than once)
+			{
+				// Stop when hitting the map border
+				Row++;
+				if (Row >= CONFIGURATION_MAP_ROWS_COUNT) break;
+				
+				// Stop when hitting a wall
+				Pointer_Cell = &Map[Row][Pointer_Player->Column]; // Cache cell address for a faster access
+				if (Pointer_Cell->Content == MAP_CELL_CONTENT_WALL) break;
+				
+				// Program the explosion
+				Pointer_Cell->Explosion_Timer = CONFIGURATION_BOMB_EXPLOSION_TIMER + (i * CONFIGURATION_BOMB_EXPLOSION_PROPAGATION_TIME);
+				Pointer_Cell->Explosion_State = MAP_EXPLOSION_STATE_DISPLAY_EXPLOSION_TILE;
+				
+				// Stop after having hit a destructible obstacle (only one destructible obstacle must be destroyed by the bomb)
+				if (Pointer_Cell->Content == MAP_CELL_CONTENT_DESTRUCTIBLE_OBSTACLE) break;
+			}
+			
+			// Center to left explosion propagation
+			Column = Pointer_Player->Column;
+			for (i = 1; i <= Pointer_Player->Explosion_Range; i++)
+			{
+				// Stop when hitting the map border
+				Column--;
+				if (Column < 0) break;
+				
+				// Stop when hitting a wall
+				Pointer_Cell = &Map[Pointer_Player->Row][Column]; // Cache cell address for a faster access
+				if (Pointer_Cell->Content == MAP_CELL_CONTENT_WALL) break;
+				
+				// Program the explosion
+				Pointer_Cell->Explosion_Timer = CONFIGURATION_BOMB_EXPLOSION_TIMER + (i * CONFIGURATION_BOMB_EXPLOSION_PROPAGATION_TIME);
+				Pointer_Cell->Explosion_State = MAP_EXPLOSION_STATE_DISPLAY_EXPLOSION_TILE;
+				
+				// Stop after having hit a destructible obstacle (only one destructible obstacle must be destroyed by the bomb)
+				if (Pointer_Cell->Content == MAP_CELL_CONTENT_DESTRUCTIBLE_OBSTACLE) break;
+			}
+			
+			// Center to right explosion propagation
+			Column = Pointer_Player->Column;
+			for (i = 1; i <= Pointer_Player->Explosion_Range; i++)
+			{
+				// Stop when hitting the map border
+				Column++;
+				if (Column >= CONFIGURATION_MAP_COLUMNS_COUNT) break;
+				
+				// Stop when hitting a wall
+				Pointer_Cell = &Map[Pointer_Player->Row][Column]; // Cache cell address for a faster access
+				if (Pointer_Cell->Content == MAP_CELL_CONTENT_WALL) break;
+				
+				// Program the explosion
+				Pointer_Cell->Explosion_Timer = CONFIGURATION_BOMB_EXPLOSION_TIMER + (i * CONFIGURATION_BOMB_EXPLOSION_PROPAGATION_TIME);
+				Pointer_Cell->Explosion_State = MAP_EXPLOSION_STATE_DISPLAY_EXPLOSION_TILE;
+				
+				// Stop after having hit a destructible obstacle (only one destructible obstacle must be destroyed by the bomb)
+				if (Pointer_Cell->Content == MAP_CELL_CONTENT_DESTRUCTIBLE_OBSTACLE) break;
+			}
 			
 			// Display the bomb
 			for (i = 0; i < Game_Players_Count; i++) NetworkSendCommandDrawTile(Game_Players[i].Socket, GAME_TILE_BOMB, Pointer_Player->Row, Pointer_Player->Column);
 			// Redraw the player on top of the bomb
 			GameDisplayPlayer(Pointer_Player);
 			
-			// Initialize the explosion timers
-			// Bomb to right explosion propagation
-			/*for (i = 0; i < Pointer_Player->Explosion_Range; i++)
-			{
-				// Cache cell address for a faster access
-				Pointer_Cell = &Map[Pointer_Player->Row + i][Pointer_Player->Column];
-				
-				// Stop when hitting a wall
-				if (Pointer_Cell->Content == MAP_CELL_CONTENT_WALL) break;
-				// Program the explosion
-				Pointer_Cell->Explosion_Timer = i * 1000000; // TODO CONFIG
-				Pointer_Cell->Explosion_State = MAP_EXPLOSION_STATE_DISPLAY_EXPLOSION_TILE;
-			}*/
-			
-			// Left explosion propagation
-			//if (
-			
 			Pointer_Player->Is_Bomb_Available = 0;
-			
 			break;
-			
 			
 		// TODO handle player deconnection (set player socket to -1 to disable network command functions)
 			
@@ -291,7 +339,7 @@ static inline void GameProcessEvents(TGamePlayer *Pointer_Player, TNetworkEvent 
 }
 
 // TODO
-/*static inline void GameHandleBombs(void)
+static inline void GameHandleBombs(void)
 {
 	int Row, Column, i;
 	TMapCell *Pointer_Cell;
@@ -327,13 +375,23 @@ static inline void GameProcessEvents(TGamePlayer *Pointer_Player, TNetworkEvent 
 			{
 				Tile_ID = GAME_TILE_ID_EMPTY;
 				Pointer_Cell->Explosion_State = MAP_EXPLOSION_STATE_NO_BOMB;
+				
+				// Was this cell containing the bomb ?
+				if (Pointer_Cell->Content == MAP_CELL_CONTENT_BOMB)
+				{
+					// Remove the bomb from the map
+					Pointer_Cell->Content = MAP_CELL_CONTENT_EMPTY;
+					
+					// The player has now a new ready bomb
+					Pointer_Cell->Pointer_Owner_Player->Is_Bomb_Available = 1; // This pointer is valid only for the cell containing the bomb itself
+				}
 			}
 			
 			// Tell all clients to display the sprite
 			for (i = 0; i < Game_Players_Count; i++) NetworkSendCommandDrawTile(Game_Players[i].Socket, Tile_ID, Row, Column);
 		}
 	}
-}*/
+}
 
 //-------------------------------------------------------------------------------------------------
 // Public functions
@@ -371,7 +429,7 @@ void GameLoop(int Expected_Players_Count)
 		}
 		
 		// Handle bombs now that players may have moved to grant them more chances of survival
-		//GameHandleBombs();
+		GameHandleBombs();
 		
 		// TODO Check player collision with bomb
 		

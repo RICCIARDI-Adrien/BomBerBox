@@ -23,12 +23,12 @@ typedef enum
 	MAP_CELL_CONTENT_BOMB //!< A bomb is here.
 } TMapCellContent;
 
-// TODO
+/** All states an exploding cell can take. */
 typedef enum
 {
-	MAP_EXPLOSION_STATE_NO_BOMB,
-	MAP_EXPLOSION_STATE_DISPLAY_EXPLOSION_TILE,
-	MAP_EXPLOSION_STATE_REMOVE_EXPLOSION_TILE
+	MAP_EXPLOSION_STATE_NO_BOMB, //!< There is no bomb in this cell.
+	MAP_EXPLOSION_STATE_DISPLAY_EXPLOSION_TILE, //!< The bomb has just exploded, display the explosion.
+	MAP_EXPLOSION_STATE_REMOVE_EXPLOSION_TILE //!< The explosion finished, remove the explosion tile.
 } TMapExplosionState;
 
 /** A map cell. */
@@ -36,9 +36,9 @@ typedef struct
 {
 	TMapCellContent Content; //!< What is located in the cell.
 	TGameTileID Tile_ID; //!< The corresponding tile.
-	//int Is_Exploding; //!< Tell if this cell is currently exploding or not.
-	TMapExplosionState Explosion_State;
-	int Explosion_Timer; // TODO
+	TMapExplosionState Explosion_State; //!< What the handling bomb routine must do with this cell.
+	int Explosion_Timer; //!< The handling bomb routine will take the action described by Explosion_State when this counter reached 0.
+	TGamePlayer *Pointer_Owner_Player; //!< The player who dropped the bomb.
 } TMapCell;
 
 //-------------------------------------------------------------------------------------------------
