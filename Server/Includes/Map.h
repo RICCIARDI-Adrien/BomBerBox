@@ -23,12 +23,21 @@ typedef enum
 	MAP_CELL_CONTENT_BOMB //!< A bomb is here.
 } TMapCellContent;
 
+// TODO
+typedef enum
+{
+	MAP_EXPLOSION_STATE_NO_BOMB,
+	MAP_EXPLOSION_STATE_DISPLAY_EXPLOSION_TILE,
+	MAP_EXPLOSION_STATE_REMOVE_EXPLOSION_TILE
+} TMapExplosionState;
+
 /** A map cell. */
 typedef struct
 {
 	TMapCellContent Content; //!< What is located in the cell.
 	TGameTileID Tile_ID; //!< The corresponding tile.
-	int Is_Exploding; //!< Tell if this cell is currently exploding or not.
+	//int Is_Exploding; //!< Tell if this cell is currently exploding or not.
+	TMapExplosionState Explosion_State;
 	int Explosion_Timer; // TODO
 } TMapCell;
 

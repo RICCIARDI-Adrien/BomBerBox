@@ -17,10 +17,11 @@ typedef enum
 	GAME_TILE_ID_DESTRUCTIBLE_OBSTACLE,
 	GAME_TILE_ID_CURRENT_PLAYER,
 	GAME_TILE_ID_OTHER_PLAYER,
+	GAME_TILE_BOMB,
+	GAME_TILE_EXPLOSION,
 	GAME_TILE_ITEM_GHOST,
 	GAME_TILE_ITEM_POWER_UP,
 	GAME_TILE_ITEM_SHIELD
-	// TODO other tiles
 } TGameTileID;
 
 //-------------------------------------------------------------------------------------------------

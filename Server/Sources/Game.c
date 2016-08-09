@@ -8,6 +8,7 @@
 #include <Map.h>
 #include <Network.h>
 #include <stdio.h>
+#include <time.h>
 
 //-------------------------------------------------------------------------------------------------
 // Private types
@@ -21,6 +22,7 @@ typedef struct
 	int Column; //!< The player X location on the map.
 	int Is_Bomb_Available; //!< Tell if the player can use a bomb or not.
 	int Explosion_Range; //!< How many cells an explosion can reach.
+	int New_Bomb_Available_Timer;
 	// TODO bonus items
 	int Is_Ghost_Mode_Enabled; //!< Tell if the player can cross the destructible objects or not.
 } TGamePlayer;
@@ -96,6 +98,10 @@ static inline void GameSpawnPlayers(void)
 		Game_Players[i].Row = Row;
 		Game_Players[i].Column = Column;
 		
+		// Initialize bombs
+		Game_Players[i].Is_Bomb_Available = 1;
+		Game_Players[i].Explosion_Range = 10; // TEST, TODO set to 1
+		
 		// Tell the clients to display the player
 		for (j = 0; j < Game_Players_Count; j++)
 		{
@@ -118,6 +124,9 @@ static inline int GameIsPlayerMoveAllowed(TGamePlayer *Pointer_Player, TMapCellC
 {
 	// The player can't cross the walls
 	if (Destination_Cell_Content == MAP_CELL_CONTENT_WALL) return 0;
+	
+	// The player can't cross a bomb
+	if (Destination_Cell_Content == MAP_CELL_CONTENT_BOMB) return 0;
 	
 	// Is the player in ghost mode ?
 	if ((Destination_Cell_Content == MAP_CELL_CONTENT_DESTRUCTIBLE_OBSTACLE) && (!Pointer_Player->Is_Ghost_Mode_Enabled)) return 0;
@@ -150,6 +159,7 @@ static inline void GameDisplayPlayer(TGamePlayer *Pointer_Player)
 static inline void GameProcessEvents(TGamePlayer *Pointer_Player, TNetworkEvent Event)
 {
 	TMapCellContent Cell_Content;
+	TMapCell *Pointer_Cell;
 	int Has_Player_Moved = 0, Player_Previous_Row = 0, Player_Previous_Column = 0, i;
 	
 	switch (Event)
@@ -210,6 +220,40 @@ static inline void GameProcessEvents(TGamePlayer *Pointer_Player, TNetworkEvent 
 			Has_Player_Moved = 1;
 			break;
 			
+		case NETWORK_EVENT_DROP_BOMB:
+			// Can the player drop a bomb ?
+			if (!Pointer_Player->Is_Bomb_Available) return;
+			
+			// Put the bomb at this location on the map
+			Map[Pointer_Player->Row][Pointer_Player->Column].Content = MAP_CELL_CONTENT_BOMB;
+			
+			// Display the bomb
+			for (i = 0; i < Game_Players_Count; i++) NetworkSendCommandDrawTile(Game_Players[i].Socket, GAME_TILE_BOMB, Pointer_Player->Row, Pointer_Player->Column);
+			// Redraw the player on top of the bomb
+			GameDisplayPlayer(Pointer_Player);
+			
+			// Initialize the explosion timers
+			// Bomb to right explosion propagation
+			/*for (i = 0; i < Pointer_Player->Explosion_Range; i++)
+			{
+				// Cache cell address for a faster access
+				Pointer_Cell = &Map[Pointer_Player->Row + i][Pointer_Player->Column];
+				
+				// Stop when hitting a wall
+				if (Pointer_Cell->Content == MAP_CELL_CONTENT_WALL) break;
+				// Program the explosion
+				Pointer_Cell->Explosion_Timer = i * 1000000; // TODO CONFIG
+				Pointer_Cell->Explosion_State = MAP_EXPLOSION_STATE_DISPLAY_EXPLOSION_TILE;
+			}*/
+			
+			// Left explosion propagation
+			//if (
+			
+			Pointer_Player->Is_Bomb_Available = 0;
+			
+			break;
+			
+			
 		// TODO handle player deconnection (set player socket to -1 to disable network command functions)
 			
 		default:
@@ -225,16 +269,19 @@ static inline void GameProcessEvents(TGamePlayer *Pointer_Player, TNetworkEvent 
 		// Tell all clients to erase the player trace (prevous trace must always be erased because some player tile is thinner than other and superposition is visible)
 		for (i = 0; i < Game_Players_Count; i++) NetworkSendCommandDrawTile(Game_Players[i].Socket, GAME_TILE_ID_EMPTY, Player_Previous_Row, Player_Previous_Column);
 		
-		// TODO bomb
-		// else
+		// Display a bomb if there was one here
+		if (Map[Player_Previous_Row][Player_Previous_Column].Content == MAP_CELL_CONTENT_BOMB)
 		{
-			for (i = 0; i < Game_Players_Count; i++)
+			for (i = 0; i < Game_Players_Count; i++) NetworkSendCommandDrawTile(Game_Players[i].Socket, GAME_TILE_BOMB, Player_Previous_Row, Player_Previous_Column);
+		}
+		
+		// Display other players if they were here too
+		for (i = 0; i < Game_Players_Count; i++)
+		{
+			if ((Game_Players[i].Socket != Pointer_Player->Socket) && (Game_Players[i].Row == Player_Previous_Row) && (Game_Players[i].Column == Player_Previous_Column))
 			{
-				if ((Game_Players[i].Socket != Pointer_Player->Socket) && (Game_Players[i].Row == Player_Previous_Row) && (Game_Players[i].Column == Player_Previous_Column))
-				{
-					GameDisplayPlayer(&Game_Players[i]); // As all enemy players are identical, only one must be drawn even if several players are located on the same map cell
-					break;
-				}
+				GameDisplayPlayer(&Game_Players[i]); // As all enemy players are identical, only one must be drawn even if several players are located on the same map cell
+				break;
 			}
 		}
 
@@ -242,6 +289,51 @@ static inline void GameProcessEvents(TGamePlayer *Pointer_Player, TNetworkEvent 
 		GameDisplayPlayer(Pointer_Player);
 	}
 }
+
+// TODO
+/*static inline void GameHandleBombs(void)
+{
+	int Row, Column, i;
+	TMapCell *Pointer_Cell;
+	TGameTileID Tile_ID;
+	
+	for (Row = 0; Row < CONFIGURATION_MAP_ROWS_COUNT; Row++)
+	{
+		for (Column = 0; Column < CONFIGURATION_MAP_COLUMNS_COUNT; Column++)
+		{
+			// Cache cell address
+			Pointer_Cell = &Map[Row][Column];
+			
+			// Bypass cells that are not involved in an explosion
+			if (Pointer_Cell->Explosion_State == MAP_EXPLOSION_STATE_NO_BOMB) continue;
+			
+			// Is it time to take an action ?
+			if (Pointer_Cell->Explosion_Timer > 0)
+			{
+				Pointer_Cell->Explosion_Timer--;
+				continue;
+			}
+			
+			// Display the explosion
+			if (Pointer_Cell->Explosion_State == MAP_EXPLOSION_STATE_DISPLAY_EXPLOSION_TILE)
+			{
+				Tile_ID = GAME_TILE_EXPLOSION;
+				Pointer_Cell->Explosion_State = MAP_EXPLOSION_STATE_REMOVE_EXPLOSION_TILE;
+				
+				// Reschedule the timer
+				Pointer_Cell->Explosion_Timer = 1000000;
+			}
+			else
+			{
+				Tile_ID = GAME_TILE_ID_EMPTY;
+				Pointer_Cell->Explosion_State = MAP_EXPLOSION_STATE_NO_BOMB;
+			}
+			
+			// Tell all clients to display the sprite
+			for (i = 0; i < Game_Players_Count; i++) NetworkSendCommandDrawTile(Game_Players[i].Socket, Tile_ID, Row, Column);
+		}
+	}
+}*/
 
 //-------------------------------------------------------------------------------------------------
 // Public functions
@@ -267,10 +359,10 @@ void GameLoop(int Expected_Players_Count)
 	for (i = 0; i < Game_Players_Count; i++) NetworkSendCommandDrawText(Game_Players[i].Socket, "Go !");
 	printf("Launching game.\n");
 	
-	while (1) // TEST, TODO clean exit
+	while (1) // TODO clean exit
 	{
-		// TODO tick timer
-		
+		// TODO tick timer (better in GameHandleBombs() ?)
+				
 		// Handle player events
 		for (i = 0; i < Game_Players_Count; i++)
 		{
@@ -278,8 +370,11 @@ void GameLoop(int Expected_Players_Count)
 			else if (Event != NETWORK_EVENT_NONE) GameProcessEvents(&Game_Players[i], Event); // Avoid calling the function if there is nothing to do
 		}
 		
-		// TODO handle bombs
+		// Handle bombs now that players may have moved to grant them more chances of survival
+		//GameHandleBombs();
 		
-		// TODO tick timer
+		// TODO Check player collision with bomb
+		
+		// TODO tick timer (better in GameHandleBombs() ?)
 	}
 }
