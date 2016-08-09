@@ -12,37 +12,6 @@
 //--------------------------------------------------------------------
 // PRIVATE API
 //--------------------------------------------------------------------
-int game_process(void)
-{
-    int rc;
-    ui_event_t event;
-    nw_action_t action;
-
-    while (1) {
-        // process user interface
-        rc = ui_event(&event);
-        if ( rc > 0 ) {
-            if ( event.type == UI_EVENT_KEYBOARD ) {
-                // process keyboard event
-                _game_keyboard_ingame(event.value);
-            }
-        }
-
-        // process server commands
-        rc = nw_get_action(&action);
-        if ( rc > 0 ) {
-            if ( action.type == NW_ACTION_DISPLAY_TILE ) {
-                ui_tile(action.data[0], 25 + action.data[2] * 32, 87 + action.data[1] * 32);
-            } else if ( action.type == NW_ACTION_DISPLAY_STR ) {
-                ui_text(action.data);
-            }
-        }
-
-        usleep(100);
-    }
-}
-
-//--------------------------------------------------------------------
 int _game_keyboard_ingame(ui_keyboard_value_t value)
 {
     int rc = 0;
@@ -80,6 +49,36 @@ int _game_keyboard_ingame(ui_keyboard_value_t value)
     return rc;
 }
 
+//--------------------------------------------------------------------
+int game_process(void)
+{
+    int rc;
+    ui_event_t event;
+    nw_action_t action;
+
+    while (1) {
+        // process user interface
+        rc = ui_event(&event);
+        if ( rc > 0 ) {
+            if ( event.type == UI_EVENT_KEYBOARD ) {
+                // process keyboard event
+                _game_keyboard_ingame(event.value);
+            }
+        }
+
+        // process server commands
+        rc = nw_get_action(&action);
+        if ( rc > 0 ) {
+            if ( action.type == NW_ACTION_DISPLAY_TILE ) {
+                ui_tile(action.data[0], 25 + action.data[2] * 32, 87 + action.data[1] * 32);
+            } else if ( action.type == NW_ACTION_DISPLAY_STR ) {
+                ui_text(action.data);
+            }
+        }
+
+        usleep(100);
+    }
+}
 
 //--------------------------------------------------------------------
 // PUBLIC API
