@@ -6,6 +6,8 @@
 #ifndef H_NETWORK_H
 #define H_NETWORK_H
 
+#include <Game.h>
+
 //-------------------------------------------------------------------------------------------------
 // Types
 //-------------------------------------------------------------------------------------------------
@@ -43,28 +45,29 @@ int NetworkWaitForPlayerConnection(int *Pointer_Player_Socket, char *Pointer_Pla
 void NetworkShutdownServer(void);
 
 /** Tell if the specified client sent an event or not.
- * @param Socket The client socket.
+ * @param Pointer_Player The player to get event from.
  * @param Pointer_Event On output, contain the event received from the client.
  * @return 0 on success,
  * @return 1 if an error occurred.
  */
-int NetworkGetEvent(int Socket, TNetworkEvent *Pointer_Event);
+int NetworkGetEvent(TGamePlayer *Pointer_Player, TNetworkEvent *Pointer_Event);
 
 /** Tell the client to draw a specific tile at the specified coordinates.
- * @param Socket The client socket.
+ * @param Pointer_Player The player to send command to.
  * @param Tile_ID The tile the client must display.
  * @param Row The tile Y coordinate.
  * @param Column The tile X coordinate.
  * @return 0 on success,
  * @return 1 if an error occurred.
  */
-int NetworkSendCommandDrawTile(int Socket, int Tile_ID, int Row, int Column);
+int NetworkSendCommandDrawTile(TGamePlayer *Pointer_Player, int Tile_ID, int Row, int Column);
 
 /** Send a displayable message to a client.
+ * @param Pointer_Player The player to send command to.
  * @param String_Text The message the client must display.
  * @return 0 on success,
  * @return 1 if an error occurred.
  */
-int NetworkSendCommandDrawText(int Socket, char *String_Text);
+int NetworkSendCommandDrawText(TGamePlayer *Pointer_Player, char *String_Text);
 
 #endif

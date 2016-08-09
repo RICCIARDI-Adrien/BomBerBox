@@ -18,6 +18,7 @@ typedef struct
 	int Column; //!< The player X location on the map.
 	int Is_Bomb_Available; //!< Tell if the player can use a bomb or not.
 	int Explosion_Range; //!< How many cells an explosion can reach.
+	int Is_Alive; //!< Tell if the player is alive or not.
 	// TODO bonus items
 	int Is_Ghost_Mode_Enabled; //!< Tell if the player can cross the destructible objects or not.
 } TGamePlayer;

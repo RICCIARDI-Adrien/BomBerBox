@@ -39,7 +39,7 @@ static inline void GameWaitForPlayersConnection(void)
 		}
 		
 		// Tell the client to wait for others
-		NetworkSendCommandDrawText(Game_Players[i].Socket, "Successfully connected. Waiting for others...");
+		NetworkSendCommandDrawText(&Game_Players[i], "Successfully connected. Waiting for others...");
 		
 		printf("Client #%d connected, name : %s.\n", i + 1, Game_Players[i].Name);
 	}
@@ -54,7 +54,7 @@ static inline void GameInitializeMap(void)
 	{
 		for (Row = 0; Row < CONFIGURATION_MAP_ROWS_COUNT; Row++)
 		{
-			for (Column = 0; Column < CONFIGURATION_MAP_COLUMNS_COUNT; Column++) NetworkSendCommandDrawTile(Game_Players[i].Socket, Map[Row][Column].Tile_ID, Row, Column);
+			for (Column = 0; Column < CONFIGURATION_MAP_COLUMNS_COUNT; Column++) NetworkSendCommandDrawTile(&Game_Players[i], Map[Row][Column].Tile_ID, Row, Column);
 		}
 	}
 }
@@ -78,6 +78,8 @@ static inline void GameSpawnPlayers(void)
 		Game_Players[i].Is_Bomb_Available = 1;
 		Game_Players[i].Explosion_Range = 1;
 		
+		Game_Players[i].Is_Alive = 1;
+		
 		// Tell the clients to display the player
 		for (j = 0; j < Game_Players_Count; j++)
 		{
@@ -85,7 +87,7 @@ static inline void GameSpawnPlayers(void)
 			if (j == i) Tile_ID = GAME_TILE_ID_CURRENT_PLAYER; // The client must recognize it's own player
 			else Tile_ID = GAME_TILE_ID_OTHER_PLAYER;
 			
-			NetworkSendCommandDrawTile(Game_Players[j].Socket, Tile_ID, Row, Column);
+			NetworkSendCommandDrawTile(&Game_Players[j], Tile_ID, Row, Column);
 		}
 	}
 }
@@ -124,7 +126,7 @@ static inline void GameDisplayPlayer(TGamePlayer *Pointer_Player)
 		if (Game_Players[i].Socket == Pointer_Player->Socket) Tile_ID = GAME_TILE_ID_CURRENT_PLAYER;
 		else Tile_ID = GAME_TILE_ID_OTHER_PLAYER;
 	
-		NetworkSendCommandDrawTile(Game_Players[i].Socket, Tile_ID, Pointer_Player->Row, Pointer_Player->Column);
+		NetworkSendCommandDrawTile(&Game_Players[i], Tile_ID, Pointer_Player->Row, Pointer_Player->Column);
 	}
 }
 
@@ -297,7 +299,7 @@ static inline void GameProcessEvents(TGamePlayer *Pointer_Player, TNetworkEvent 
 			}
 			
 			// Display the bomb
-			for (i = 0; i < Game_Players_Count; i++) NetworkSendCommandDrawTile(Game_Players[i].Socket, GAME_TILE_BOMB, Pointer_Player->Row, Pointer_Player->Column);
+			for (i = 0; i < Game_Players_Count; i++) NetworkSendCommandDrawTile(&Game_Players[i], GAME_TILE_BOMB, Pointer_Player->Row, Pointer_Player->Column);
 			// Redraw the player on top of the bomb
 			GameDisplayPlayer(Pointer_Player);
 			
@@ -317,18 +319,18 @@ static inline void GameProcessEvents(TGamePlayer *Pointer_Player, TNetworkEvent 
 		// TODO get item if there is one on the cell
 		
 		// Tell all clients to erase the player trace (prevous trace must always be erased because some player tile is thinner than other and superposition is visible)
-		for (i = 0; i < Game_Players_Count; i++) NetworkSendCommandDrawTile(Game_Players[i].Socket, GAME_TILE_ID_EMPTY, Player_Previous_Row, Player_Previous_Column);
+		for (i = 0; i < Game_Players_Count; i++) NetworkSendCommandDrawTile(&Game_Players[i], GAME_TILE_ID_EMPTY, Player_Previous_Row, Player_Previous_Column);
 		
 		// Display a bomb if there was one here
 		if (Map[Player_Previous_Row][Player_Previous_Column].Content == MAP_CELL_CONTENT_BOMB)
 		{
-			for (i = 0; i < Game_Players_Count; i++) NetworkSendCommandDrawTile(Game_Players[i].Socket, GAME_TILE_BOMB, Player_Previous_Row, Player_Previous_Column);
+			for (i = 0; i < Game_Players_Count; i++) NetworkSendCommandDrawTile(&Game_Players[i], GAME_TILE_BOMB, Player_Previous_Row, Player_Previous_Column);
 		}
 		
 		// Display other players if they were here too
 		for (i = 0; i < Game_Players_Count; i++)
 		{
-			if ((Game_Players[i].Socket != Pointer_Player->Socket) && (Game_Players[i].Row == Player_Previous_Row) && (Game_Players[i].Column == Player_Previous_Column))
+			if ((Game_Players[i].Is_Alive) && (Game_Players[i].Socket != Pointer_Player->Socket) && (Game_Players[i].Row == Player_Previous_Row) && (Game_Players[i].Column == Player_Previous_Column))
 			{
 				GameDisplayPlayer(&Game_Players[i]); // As all enemy players are identical, only one must be drawn even if several players are located on the same map cell
 				break;
@@ -397,10 +399,21 @@ static inline void GameHandleBombs(void)
 					
 					Tile_ID = Pointer_Cell->Tile_ID;
 				}
+				
+				// Handle player collision with bomb flames
+				// Is there one or more player(s) on this cell ?
+				for (i = 0; i < Game_Players_Count; i++)
+				{
+					if ((Game_Players[i].Row == Row) && (Game_Players[i].Column == Column))
+					{
+						NetworkSendCommandDrawText(&Game_Players[i], "You are dead !");
+						Game_Players[i].Is_Alive = 0;
+					}
+				}
 			}
 			
 			// Tell all clients to display the sprite
-			for (i = 0; i < Game_Players_Count; i++) NetworkSendCommandDrawTile(Game_Players[i].Socket, Tile_ID, Row, Column);
+			for (i = 0; i < Game_Players_Count; i++) NetworkSendCommandDrawTile(&Game_Players[i], Tile_ID, Row, Column);
 		}
 	}
 }
@@ -427,7 +440,7 @@ void GameLoop(int Expected_Players_Count)
 	printf("Players spawned.\n");
 	
 	// Tell all clients that game is ready
-	for (i = 0; i < Game_Players_Count; i++) NetworkSendCommandDrawText(Game_Players[i].Socket, "Go !");
+	for (i = 0; i < Game_Players_Count; i++) NetworkSendCommandDrawText(&Game_Players[i], "Go !");
 	printf("Launching game.\n");
 	
 	while (1) // TODO clean exit
@@ -442,7 +455,7 @@ void GameLoop(int Expected_Players_Count)
 		// Handle player events
 		for (i = 0; i < Game_Players_Count; i++)
 		{
-			if (NetworkGetEvent(Game_Players[i].Socket, &Event) != 0) printf("[%s:%d] Error : failed to get the player #%d next event.\n", __FUNCTION__, __LINE__, i + 1);
+			if (NetworkGetEvent(&Game_Players[i], &Event) != 0) printf("[%s:%d] Error : failed to get the player #%d next event.\n", __FUNCTION__, __LINE__, i + 1);
 			else if (Event != NETWORK_EVENT_NONE) GameProcessEvents(&Game_Players[i], Event); // Avoid calling the function if there is nothing to do
 		}
 		
