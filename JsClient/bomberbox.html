@@ -10,11 +10,11 @@
     <body>
         <h1>BomBerBox</h1>
         <canvas id="bbb_canvas" width="640" height="480">
-            Votre navigateur ne supporte pas HTML5, veuillez le mettre à jour pour jouer.
+        Votre navigateur ne supporte pas HTML5, veuillez le mettre à jour pour jouer.
         </canvas>
         <form id="bbb_settings">
             <h3>Paramètres du serveur</h3>
-            Adresse IP : <input type="text" name="server_ip" value="127.0.0.1"> Port : <input type="text" name="server_port" value="1234"><br>
+            Adresse IP : <input type="text" name="server_ip" value="127.0.0.1"> Port : <input type="text" name="server_port" value="8080"><br>
             <h3>Informations du joueur</h3>
             Pseudo : <input type="text" name="player_name" value="Georges"><br>
             Avatar : <br><br>
@@ -23,6 +23,9 @@
             <input type="radio" name="player_avatar" value="ninja_red"><img src="sprites/ninja_red.png" alt="Ninja rouge"/>
             <input type="radio" name="player_avatar" value="alien"><img src="sprites/alien.png" alt="Alien"/><br><br>
             <input type="button" onclick="server_connect()" value="Connexion !"><br>
+        </form>
+        <form>
+            <input type="button" onclick="send_msg()" value="send TEST">
         </form>
     </body>
 </html>

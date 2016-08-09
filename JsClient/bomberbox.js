@@ -1,3 +1,5 @@
+var connection;
+
 window.onload = function() {
 
     var canvas = document.getElementById('bbb_canvas');
@@ -17,11 +19,31 @@ function server_connect() {
     var form = document.getElementById("bbb_settings");
     var server = form.server_ip.value;
     var port = form.server_port.value;
-    var name = form.server_port.player_name;
+    var name = form.player_name.value;
+    console.log(name);
 
-    var connection = new WebSocket('ws://'+server+':'+port);
+    connection = new WebSocket('ws://'+server+':'+port);
+
+    connection.onmessage = function () {
+        console.log("ws message!");
+    }
+
+    connection.onerror = function () {
+        console.log("ws error!");
+    }
 
     connection.onopen = function () {
-        connection.send(player_name);
+        console.log("ws open!");
+        connection.send(name + '\0');
+    };
+
+    connection.onclose = function () {
+        console.log("ws closed!");
     };
 }
+
+function send_msg() {
+    console.log("send TEST");
+    connection.send("TEST" + '\0');
+}
+
