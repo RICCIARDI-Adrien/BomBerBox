@@ -4,10 +4,12 @@
  */
 
 #include <Configuration.h>
+#include <errno.h>
 #include <Game.h>
 #include <Map.h>
 #include <Network.h>
 #include <stdio.h>
+#include <string.h>
 #include <time.h>
 
 //-------------------------------------------------------------------------------------------------
@@ -338,7 +340,7 @@ static inline void GameProcessEvents(TGamePlayer *Pointer_Player, TNetworkEvent 
 	}
 }
 
-// TODO
+/** Browse the map to find which cells must explode. */
 static inline void GameHandleBombs(void)
 {
 	int Row, Column, i;
@@ -369,7 +371,7 @@ static inline void GameHandleBombs(void)
 				Pointer_Cell->Explosion_State = MAP_EXPLOSION_STATE_REMOVE_EXPLOSION_TILE;
 				
 				// Reschedule the timer
-				Pointer_Cell->Explosion_Timer = 1000000;
+				Pointer_Cell->Explosion_Timer = CONFIGURATION_BOMB_EXPLOSION_PROPAGATION_TIME;
 			}
 			else
 			{
@@ -400,6 +402,7 @@ void GameLoop(int Expected_Players_Count)
 {
 	int i;
 	TNetworkEvent Event;
+	struct timespec Time_To_Wait;
 	
 	// Make sure everyone is in before starting the game
 	Game_Players_Count = Expected_Players_Count;
@@ -419,8 +422,13 @@ void GameLoop(int Expected_Players_Count)
 	
 	while (1) // TODO clean exit
 	{
-		// TODO tick timer (better in GameHandleBombs() ?)
-				
+		// Get loop starting time
+		if (clock_gettime(CLOCK_MONOTONIC, &Time_To_Wait) != 0) printf("[%s:%d] Error : clock_gettime() failed (%s).\n", __FUNCTION__, __LINE__, strerror(errno));
+		
+		// Add the required waiting time
+		Time_To_Wait.tv_nsec = (Time_To_Wait.tv_nsec + CONFIGURATION_GAME_TICK) % 999999999; // The maximum nanoseconds value is 999999999
+		if (Time_To_Wait.tv_nsec < CONFIGURATION_GAME_TICK) Time_To_Wait.tv_sec++; // Adjust seconds if nanoseconds overlapped
+		
 		// Handle player events
 		for (i = 0; i < Game_Players_Count; i++)
 		{
@@ -431,8 +439,7 @@ void GameLoop(int Expected_Players_Count)
 		// Handle bombs now that players may have moved to grant them more chances of survival
 		GameHandleBombs();
 		
-		// TODO Check player collision with bomb
-		
-		// TODO tick timer (better in GameHandleBombs() ?)
+		// Wait for the required absolute time
+		if (clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &Time_To_Wait, NULL) != 0) printf("[%s:%d] Error : clock_nanosleep() failed (%s).\n", __FUNCTION__, __LINE__, strerror(errno));
 	}
 }

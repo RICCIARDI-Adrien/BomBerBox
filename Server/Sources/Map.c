@@ -76,7 +76,7 @@ int MapLoad(char *String_File_Path)
 			{
 				case ' ':
 					// Generate or not a destructible object in this empty cell
-					if (rand() % 50 > CONFIGURATION_DESTRUCTIBLE_OBSTACLES_GENERATION_PROBABILITY)
+					if (rand() % 100 < CONFIGURATION_DESTRUCTIBLE_OBSTACLES_GENERATION_PERCENTAGE)
 					{
 						Map[Row][Column].Content = MAP_CELL_CONTENT_DESTRUCTIBLE_OBSTACLE;
 						Map[Row][Column].Tile_ID = GAME_TILE_ID_DESTRUCTIBLE_OBSTACLE;
