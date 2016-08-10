@@ -23,7 +23,7 @@
 /** Destructible obstacles generation probability in percent. */
 #define CONFIGURATION_DESTRUCTIBLE_OBSTACLES_GENERATION_PERCENTAGE 35
 /** The probability to spawn an item when a Destructible obstacle is broken. */
-#define CONFIGURATION_DESTRUCTIBLE_OBSTACLE_ITEM_SPAWNING_PERCENTAGE 15
+#define CONFIGURATION_DESTRUCTIBLE_OBSTACLE_ITEM_SPAWNING_PERCENTAGE 35
 
 /** The maximum length of a 'draw text' command message. */
 #define CONFIGURATION_COMMAND_DRAW_TEXT_MESSAGE_MAXIMUM_SIZE 255

@@ -73,12 +73,11 @@ static inline void GameSpawnPlayers(void)
 		// Put player at this location
 		Game_Players[i].Row = Row;
 		Game_Players[i].Column = Column;
+		Game_Players[i].Is_Alive = 1;
 		
 		// Initialize bombs
-		Game_Players[i].Is_Bomb_Available = 1;
-		Game_Players[i].Explosion_Range = 1;
-		
-		Game_Players[i].Is_Alive = 1;
+		Game_Players[i].Bombs_Count = 1;
+		Game_Players[i].Explosion_Range = 2; // Take into account the explosion center too
 		
 		// Tell the clients to display the player
 		for (j = 0; j < Game_Players_Count; j++)
@@ -200,7 +199,7 @@ static inline void GameProcessEvents(TGamePlayer *Pointer_Player, TNetworkEvent 
 			
 		case NETWORK_EVENT_DROP_BOMB:
 			// Can the player drop a bomb ?
-			if (!Pointer_Player->Is_Bomb_Available) return;
+			if (Pointer_Player->Bombs_Count == 0) return;
 			
 			// Cache the cell address
 			Pointer_Cell = &Map[Pointer_Player->Row][Pointer_Player->Column];
@@ -220,7 +219,7 @@ static inline void GameProcessEvents(TGamePlayer *Pointer_Player, TNetworkEvent 
 			
 			// Center to up explosion propagation
 			Row = Pointer_Player->Row;
-			for (i = 1; i <= Pointer_Player->Explosion_Range; i++) // Start from 1 to bypass the explosion center (no need to set it more than once)
+			for (i = 1; i < Pointer_Player->Explosion_Range; i++) // Start from 1 to bypass the explosion center (no need to set it more than once)
 			{
 				// Stop when hitting the map border
 				Row--;
@@ -240,7 +239,7 @@ static inline void GameProcessEvents(TGamePlayer *Pointer_Player, TNetworkEvent 
 			
 			// Center to down explosion propagation
 			Row = Pointer_Player->Row;
-			for (i = 1; i <= Pointer_Player->Explosion_Range; i++) // Start from 1 to bypass the explosion center (no need to set it more than once)
+			for (i = 1; i < Pointer_Player->Explosion_Range; i++)
 			{
 				// Stop when hitting the map border
 				Row++;
@@ -260,7 +259,7 @@ static inline void GameProcessEvents(TGamePlayer *Pointer_Player, TNetworkEvent 
 			
 			// Center to left explosion propagation
 			Column = Pointer_Player->Column;
-			for (i = 1; i <= Pointer_Player->Explosion_Range; i++)
+			for (i = 1; i < Pointer_Player->Explosion_Range; i++)
 			{
 				// Stop when hitting the map border
 				Column--;
@@ -280,7 +279,7 @@ static inline void GameProcessEvents(TGamePlayer *Pointer_Player, TNetworkEvent 
 			
 			// Center to right explosion propagation
 			Column = Pointer_Player->Column;
-			for (i = 1; i <= Pointer_Player->Explosion_Range; i++)
+			for (i = 1; i < Pointer_Player->Explosion_Range; i++)
 			{
 				// Stop when hitting the map border
 				Column++;
@@ -303,7 +302,7 @@ static inline void GameProcessEvents(TGamePlayer *Pointer_Player, TNetworkEvent 
 			// Redraw the player on top of the bomb
 			GameDisplayPlayer(Pointer_Player);
 			
-			Pointer_Player->Is_Bomb_Available = 0;
+			Pointer_Player->Bombs_Count--;
 			break;
 			
 		// TODO handle player deconnection (set player socket to -1 to disable network command functions)
@@ -316,7 +315,25 @@ static inline void GameProcessEvents(TGamePlayer *Pointer_Player, TNetworkEvent 
 	// Notify all clients that a player moved
 	if (Has_Player_Moved)
 	{
-		// TODO get item if there is one on the cell
+		// Get item if there is one on the cell
+		switch (Cell_Content)
+		{
+			case MAP_CELL_CONTENT_ITEM_SHIELD:
+				// TODO
+				break;
+				
+			case MAP_CELL_CONTENT_ITEM_POWER_UP_BOMB_RANGE:
+				Pointer_Player->Explosion_Range++;
+				break;
+				
+			case MAP_CELL_CONTENT_ITEM_POWER_UP_BOMBS_COUNT:
+				Pointer_Player->Bombs_Count++;
+				break;
+				
+			// This is not a retrievable item 
+			default:
+				break;
+		}
 		
 		// Tell all clients to erase the player trace (prevous trace must always be erased because some player tile is thinner than other and superposition is visible)
 		for (i = 0; i < Game_Players_Count; i++) NetworkSendCommandDrawTile(&Game_Players[i], GAME_TILE_ID_EMPTY, Player_Previous_Row, Player_Previous_Column);
@@ -387,7 +404,7 @@ static inline void GameHandleBombs(void)
 					Pointer_Cell->Content = MAP_CELL_CONTENT_EMPTY;
 					
 					// The player has now a new ready bomb
-					Pointer_Cell->Pointer_Owner_Player->Is_Bomb_Available = 1; // This pointer is valid only for the cell containing the bomb itself
+					Pointer_Cell->Pointer_Owner_Player->Bombs_Count++; // This pointer is valid only for the cell containing the bomb itself
 					
 					Tile_ID = GAME_TILE_ID_EMPTY;
 				}

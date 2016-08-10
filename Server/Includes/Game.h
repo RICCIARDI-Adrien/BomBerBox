@@ -13,10 +13,10 @@
 typedef struct
 {
 	char Name[CONFIGURATION_MAXIMUM_PLAYER_NAME_LENGTH]; //!< The player name.
-	int Socket; //<! The network socket used to communicate with the client.
+	int Socket; //!< The network socket used to communicate with the client.
 	int Row; //!< The player Y location on the map.
 	int Column; //!< The player X location on the map.
-	int Is_Bomb_Available; //!< Tell if the player can use a bomb or not.
+	int Bombs_Count; //!< Tell how many bombs the player can carry.
 	int Explosion_Range; //!< How many cells an explosion can reach.
 	int Is_Alive; //!< Tell if the player is alive or not.
 	// TODO bonus items
