@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
+#include <unistd.h>
 
 //-------------------------------------------------------------------------------------------------
 // Private variables
@@ -19,6 +20,8 @@
 static TGamePlayer Game_Players[CONFIGURATION_MAXIMUM_PLAYERS_COUNT];
 /** How many players in the game. */
 static int Game_Players_Count;
+/** How many alive players in the current game. */
+static int Game_Alive_Players_Count;
 
 //-------------------------------------------------------------------------------------------------
 // Private functions
@@ -427,6 +430,7 @@ static inline void GameHandleBombs(void)
 					{
 						NetworkSendCommandDrawText(&Game_Players[i], "You are dead !");
 						Game_Players[i].Is_Alive = 0;
+						Game_Alive_Players_Count--;
 					}
 				}
 			}
@@ -440,48 +444,95 @@ static inline void GameHandleBombs(void)
 //-------------------------------------------------------------------------------------------------
 // Public functions
 //-------------------------------------------------------------------------------------------------
-void GameLoop(int Expected_Players_Count)
+int GameLoop(int Expected_Players_Count)
 {
-	int i;
+	int i, Map_Spawn_Points_Count;
 	TNetworkEvent Event;
 	struct timespec Time_To_Wait;
+	char String_Next_Round_Message[CONFIGURATION_MAXIMUM_PLAYER_NAME_LENGTH + 64]; // 64 bytes are enough for the static text
 	
 	// Make sure everyone is in before starting the game
 	Game_Players_Count = Expected_Players_Count;
 	GameWaitForPlayersConnection();
 	
-	// All players are in, send them the map
-	GameInitializeMap();
-	printf("Map sent to players.\n");
-	
-	// Choose initial players location
-	GameSpawnPlayers();
-	printf("Players spawned.\n");
-	
-	// Tell all clients that game is ready
-	for (i = 0; i < Game_Players_Count; i++) NetworkSendCommandDrawText(&Game_Players[i], "Go !");
-	printf("Launching game.\n");
-	
-	while (1) // TODO clean exit
+	// Start a game
+	while (1)
 	{
-		// Get loop starting time
-		if (clock_gettime(CLOCK_MONOTONIC, &Time_To_Wait) != 0) printf("[%s:%d] Error : clock_gettime() failed (%s).\n", __FUNCTION__, __LINE__, strerror(errno));
-		
-		// Add the required waiting time
-		Time_To_Wait.tv_nsec = (Time_To_Wait.tv_nsec + CONFIGURATION_GAME_TICK) % 999999999; // The maximum nanoseconds value is 999999999
-		if (Time_To_Wait.tv_nsec < CONFIGURATION_GAME_TICK) Time_To_Wait.tv_sec++; // Adjust seconds if nanoseconds overlapped
-		
-		// Handle player events
-		for (i = 0; i < Game_Players_Count; i++)
+		// Try to load a map
+		if (MapLoadRandom() != 0)
 		{
-			if (NetworkGetEvent(&Game_Players[i], &Event) != 0) printf("[%s:%d] Error : failed to get the player #%d next event.\n", __FUNCTION__, __LINE__, i + 1);
-			else if (Event != NETWORK_EVENT_NONE) GameProcessEvents(&Game_Players[i], Event); // Avoid calling the function if there is nothing to do
+			printf("[%s:%d] Error : failed to load the map.\n", __FUNCTION__, __LINE__);
+			return 1;
 		}
+	
+		// Are there enough spawn points for all players ?
+		Map_Spawn_Points_Count = MapGetSpawnPointsCount();
+		if (Map_Spawn_Points_Count < Game_Players_Count)
+		{
+			printf("[%s:%d] Error : the map has only %d spawn points while %d players are expected.\n", __FUNCTION__, __LINE__, Map_Spawn_Points_Count, Game_Players_Count);
+			return 1;
+		}
+		printf("Map successfully loaded.\n");
 		
-		// Handle bombs now that players may have moved to grant them more chances of survival
-		GameHandleBombs();
+		// Send the map to all players
+		GameInitializeMap();
+		printf("Map sent to players.\n");
 		
-		// Wait for the required absolute time
-		if (clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &Time_To_Wait, NULL) != 0) printf("[%s:%d] Error : clock_nanosleep() failed (%s).\n", __FUNCTION__, __LINE__, strerror(errno));
+		// Choose initial players location
+		GameSpawnPlayers();
+		Game_Alive_Players_Count = Game_Players_Count;
+		printf("Players spawned.\n");
+		
+		// Tell all clients that game is ready
+		for (i = 0; i < Game_Players_Count; i++) NetworkSendCommandDrawText(&Game_Players[i], "Go !");
+		printf("Launching game.\n");
+		
+		// Update player actions and bombs
+		while (1)
+		{
+			// Get loop starting time
+			if (clock_gettime(CLOCK_MONOTONIC, &Time_To_Wait) != 0) printf("[%s:%d] Error : clock_gettime() failed (%s).\n", __FUNCTION__, __LINE__, strerror(errno));
+			
+			// Add the required waiting time
+			Time_To_Wait.tv_nsec = (Time_To_Wait.tv_nsec + CONFIGURATION_GAME_TICK) % 999999999; // The maximum nanoseconds value is 999999999
+			if (Time_To_Wait.tv_nsec < CONFIGURATION_GAME_TICK) Time_To_Wait.tv_sec++; // Adjust seconds if nanoseconds overlapped
+			
+			// Handle player events
+			for (i = 0; i < Game_Players_Count; i++)
+			{
+				if (NetworkGetEvent(&Game_Players[i], &Event) != 0) printf("[%s:%d] Error : failed to get the player #%d next event.\n", __FUNCTION__, __LINE__, i + 1);
+				else if (Event != NETWORK_EVENT_NONE) GameProcessEvents(&Game_Players[i], Event); // Avoid calling the function if there is nothing to do
+			}
+			
+			// Handle bombs now that players may have moved to grant them more chances of survival
+			GameHandleBombs();
+			
+			// Wait for the required absolute time
+			if (clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &Time_To_Wait, NULL) != 0) printf("[%s:%d] Error : clock_nanosleep() failed (%s).\n", __FUNCTION__, __LINE__, strerror(errno));
+			
+			// Is there a last player standing ?
+			if (Game_Alive_Players_Count <= 1) // One player remaining or all players dead
+			{
+				if (Game_Alive_Players_Count == 1)
+				{
+					// Find this player
+					for (i = 0; i < Game_Players_Count; i++)
+					{
+						if (Game_Players[i].Is_Alive) break;
+					}
+					
+					// Tell all players that he won
+					sprintf(String_Next_Round_Message, "%s has won ! %d seconds before next round...", Game_Players[i].Name, CONFIGURATION_SECONDS_BETWEEN_NEXT_ROUND);
+				}
+				else sprintf(String_Next_Round_Message, "Everyone died. %d seconds before next round...", CONFIGURATION_SECONDS_BETWEEN_NEXT_ROUND);
+				
+				// Send the message to all players
+				for (i = 0; i < Game_Players_Count; i++) NetworkSendCommandDrawText(&Game_Players[i], String_Next_Round_Message);
+				printf("%s\n", String_Next_Round_Message);
+				
+				usleep(CONFIGURATION_SECONDS_BETWEEN_NEXT_ROUND * 1000000);
+				break;
+			}
+		}
 	}
 }

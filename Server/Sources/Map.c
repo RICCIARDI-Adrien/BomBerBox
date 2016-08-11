@@ -15,6 +15,12 @@
 #include <unistd.h>
 
 //-------------------------------------------------------------------------------------------------
+// Private constants
+//-------------------------------------------------------------------------------------------------
+/** How many maps are available. */
+#define MAPS_COUNT (sizeof(String_Maps_File_Names) / sizeof(char *))
+
+//-------------------------------------------------------------------------------------------------
 // Private types
 //-------------------------------------------------------------------------------------------------
 /** A cell coordinates in the map. */
@@ -32,15 +38,23 @@ static int Map_Spawn_Points_Count;
 /** The spawn points location. */
 static TMapCellCoordinate Map_Spawn_Points_Coordinates[CONFIGURATION_MAXIMUM_PLAYERS_COUNT];
 
+/** All available maps file name. */
+static char *String_Maps_File_Names[] = { CONFIGURATION_MAP_FILE_NAMES };
+
 //-------------------------------------------------------------------------------------------------
 // Public variables
 //-------------------------------------------------------------------------------------------------
 TMapCell Map[CONFIGURATION_MAP_ROWS_COUNT][CONFIGURATION_MAP_COLUMNS_COUNT];
 
 //-------------------------------------------------------------------------------------------------
-// Public functions
+// Private functions
 //-------------------------------------------------------------------------------------------------
-int MapLoad(char *String_File_Path)
+/** Load a map from a text file.
+ * @param String_File_Path The file location.
+ * @return 0 if the map was successfully loaded,
+ * @return 1 if an error occurred.
+ */
+static inline int MapLoad(char *String_File_Path)
 {
 	int File_Descriptor, Row, Column;
 	char Character;
@@ -70,6 +84,11 @@ int MapLoad(char *String_File_Path)
 					return 1;
 				}
 			} while (Character == '\n'); // Bypass new line character
+			
+			// Reset the map cell
+			Map[Row][Column].Content = MAP_CELL_CONTENT_EMPTY;
+			Map[Row][Column].Tile_ID = GAME_TILE_ID_EMPTY;
+			Map[Row][Column].Explosion_State = MAP_EXPLOSION_STATE_NO_BOMB;
 			
 			// Is the character allowed ?
 			switch (Character)
@@ -118,6 +137,24 @@ int MapLoad(char *String_File_Path)
 	close(File_Descriptor);
 	
 	return 0;
+}
+
+//-------------------------------------------------------------------------------------------------
+// Public functions
+//-------------------------------------------------------------------------------------------------
+int MapLoadRandom(void)
+{
+	char *String_Map_File_Name;
+	char String_Map_Full_File_Path[256];
+	
+	// Choose a random map
+	String_Map_File_Name = String_Maps_File_Names[rand() % MAPS_COUNT];
+	
+	// Create the map file path to load
+	snprintf(String_Map_Full_File_Path, sizeof(String_Map_Full_File_Path), "%s/%s", CONFIGURATION_MAPS_PATH, String_Map_File_Name);
+	printf("Loading map %s...\n", String_Map_Full_File_Path);
+	
+	return MapLoad(String_Map_Full_File_Path);
 }
 
 int MapGetSpawnPointsCount(void)

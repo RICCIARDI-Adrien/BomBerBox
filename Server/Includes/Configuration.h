@@ -34,6 +34,16 @@
 /** How long a bomb will remain before exploding (in tick units). */
 #define CONFIGURATION_BOMB_EXPLOSION_TIMER (2000000000L / CONFIGURATION_GAME_TICK)
 /** How long should an explosion tile be displayed (in tick unit). */
-#define CONFIGURATION_BOMB_EXPLOSION_PROPAGATION_TIME (500000000L / CONFIGURATION_GAME_TICK)
+#define CONFIGURATION_BOMB_EXPLOSION_PROPAGATION_TIME (250000000L / CONFIGURATION_GAME_TICK)
+
+/** How many time to wait between a game end and a new one. */
+#define CONFIGURATION_SECONDS_BETWEEN_NEXT_ROUND 5
+
+/** Path to the maps directory. */
+#define CONFIGURATION_MAPS_PATH "Maps"
+
+/** All available maps. */
+#define CONFIGURATION_MAP_FILE_NAMES "test.txt", \
+	"test2.txt"
 
 #endif
