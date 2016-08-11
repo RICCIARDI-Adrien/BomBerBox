@@ -92,7 +92,7 @@ int main(int argc, const char *argv[])
         exit(1);
     }
 
-    rc = nw_connect(argv[1], argv[2], argv[3]);
+    rc = nw_connect(argv[1], argv[2]);
     if ( rc ) {
         fprintf(stderr, "cannot connect to server %s:%d", argv[1], atoi(argv[2]));
         exit(1);
