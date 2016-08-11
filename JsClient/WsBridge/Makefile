@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -std=c99 -Wall -O2
+CFLAGS = -std=c99 -D_POSIX_SOURCE -Wall -O2
 LDFLAGS = -lpthread
 
 INCLUDES = -Iinclude
