@@ -1,9 +1,8 @@
 /* Websocket */
 var ws;
 
-/* canvas and his context */
+/* canvas context */
 var canvas;
-var ctx;
 
 /* client command definition */
 var action_type = {
@@ -35,7 +34,7 @@ var tile_img = {
 
 window.onload = function() {
 
-    canvas = document.getElementById('bbb_canvas');
+    var canvas = document.getElementById('bbb_canvas');
     if(!canvas) {
         alert("Impossible de récupérer le canvas");
         return;
@@ -47,12 +46,12 @@ window.onload = function() {
         return;
     }
 
-    ctx.font = "22px Comic Sans MS";
-    ctx.textAlign = "center";
 }
 
-function canvas_print_text(str) {
-    ctx.fillText(str, canvas.width/2, canvas.height/2);
+function bbb_console_log(str) {
+    var textarea = document.getElementById("bbb_console");
+    textarea.value += "> " + str + "\n";
+    textarea.scrollTop = textarea.scrollHeight;
 }
 
 function canvas_print_tile(tid, x, y)
@@ -65,13 +64,6 @@ function canvas_print_tile(tid, x, y)
     };
 }
 
-function canvas_clear()
-{
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-}
-
-
-
 function server_connect() {
     var form = document.getElementById("bbb_settings");
     var server = form.server_ip.value;
@@ -81,20 +73,29 @@ function server_connect() {
 
     tile_img.GAME_TILE_ID_CURRENT_PLAYER = "sprites/" + avatar + ".png";
 
+    bbb_console_log("Trying to connect to BomBerBox server.");
+
     ws = new WebSocket('ws://'+server+':'+port);
     form.connect_btn.disabled = true;
 
 
     ws.onmessage = function (evt) {
-        //console.log("ws rcv msg: " + evt.data);
-        if (evt.data[0] == String.fromCharCode(action_type.NW_ACTION_DISPLAY_STR)) {
-            canvas_print_text(evt.data.substring(1));
-        } else if(evt.data[0] == String.fromCharCode(action_type.NW_ACTION_DISPLAY_TILE)) {
-            var tid = evt.data.charCodeAt(1);
-            var x = evt.data.charCodeAt(3) * 32;
-            var y = evt.data.charCodeAt(2) * 32;
-            canvas_print_tile(tid, x, y);
-        }
+        var i = 0;
+        do {
+            if (evt.data[i] == String.fromCharCode(action_type.NW_ACTION_DISPLAY_STR)) {
+                bbb_console_log(evt.data.substring(i+2, i+2+evt.data.charCodeAt(i+1)));
+                i += evt.data.charCodeAt(i+1) + 2;
+            } else if(evt.data[i] == String.fromCharCode(action_type.NW_ACTION_DISPLAY_TILE)) {
+                var tid = evt.data.charCodeAt(i+1);
+                var x = evt.data.charCodeAt(i+3) * 32;
+                var y = evt.data.charCodeAt(i+2) * 32;
+                i += 4;
+                canvas_print_tile(tid, x, y);
+            } else {
+                // Bad message: check next byte
+                i++;
+            }
+        } while (i < evt.data.length);
     }
 
     ws.onerror = function () {

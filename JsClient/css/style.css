@@ -17,4 +17,13 @@ canvas {
     border: 1px solid black;
 }
 
-
+textarea {
+    resize: none;
+    width: 637px;
+    height: 50px;
+    border: 1px solid black;
+    background-color: white;
+    white-space: pre-wrap;
+    font-family: "Consolas", "Ubuntu Mono", "Monaco", monospace;
+    color: green;
+}
