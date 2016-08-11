@@ -39,4 +39,11 @@
 /** How many time to wait between a game end and a new one. */
 #define CONFIGURATION_SECONDS_BETWEEN_NEXT_ROUND 5
 
+/** Path to the maps directory. */
+#define CONFIGURATION_MAPS_PATH "Maps"
+
+/** All available maps. */
+#define CONFIGURATION_MAP_FILE_NAMES "test.txt", \
+	"test2.txt"
+
 #endif

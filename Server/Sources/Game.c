@@ -444,9 +444,9 @@ static inline void GameHandleBombs(void)
 //-------------------------------------------------------------------------------------------------
 // Public functions
 //-------------------------------------------------------------------------------------------------
-void GameLoop(int Expected_Players_Count)
+int GameLoop(int Expected_Players_Count)
 {
-	int i;
+	int i, Map_Spawn_Points_Count;
 	TNetworkEvent Event;
 	struct timespec Time_To_Wait;
 	char String_Next_Round_Message[CONFIGURATION_MAXIMUM_PLAYER_NAME_LENGTH + 64]; // 64 bytes are enough for the static text
@@ -458,7 +458,23 @@ void GameLoop(int Expected_Players_Count)
 	// Start a game
 	while (1)
 	{
-		// All players are in, send them the map
+		// Try to load a map
+		if (MapLoadRandom() != 0)
+		{
+			printf("[%s:%d] Error : failed to load the map.\n", __FUNCTION__, __LINE__);
+			return 1;
+		}
+	
+		// Are there enough spawn points for all players ?
+		Map_Spawn_Points_Count = MapGetSpawnPointsCount();
+		if (Map_Spawn_Points_Count < Game_Players_Count)
+		{
+			printf("[%s:%d] Error : the map has only %d spawn points while %d players are expected.\n", __FUNCTION__, __LINE__, Map_Spawn_Points_Count, Game_Players_Count);
+			return 1;
+		}
+		printf("Map successfully loaded.\n");
+		
+		// Send the map to all players
 		GameInitializeMap();
 		printf("Map sent to players.\n");
 		

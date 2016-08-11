@@ -53,12 +53,11 @@ extern TMapCell Map[CONFIGURATION_MAP_ROWS_COUNT][CONFIGURATION_MAP_COLUMNS_COUN
 //-------------------------------------------------------------------------------------------------
 // Functions
 //-------------------------------------------------------------------------------------------------
-/** Load a map from a text file.
- * @param String_File_Path The file location.
+/** Load a random map from the CONFIGURATION_MAPS_PATH directory.
  * @return 0 if the map was successfully loaded,
  * @return 1 if an error occurred.
  */
-int MapLoad(char *String_File_Path);
+int MapLoadRandom(void);
 
 /** Tell how many spawn points the map has.
  * @return The spawn points amount.

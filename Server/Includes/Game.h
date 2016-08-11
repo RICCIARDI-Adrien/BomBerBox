@@ -44,7 +44,9 @@ typedef enum
 //-------------------------------------------------------------------------------------------------
 /** Wait for the players to connect and start the game.
  * @param Expected_Players_Count How many players to wait for.
+ * @return 0 if no error occurred,
+ * @return 1 if an error occurred.
  */
-void GameLoop(int Expected_Players_Count);
+int GameLoop(int Expected_Players_Count);
 
 #endif
