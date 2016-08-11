@@ -189,8 +189,8 @@ static void *remote_server_thread_handler(void *arg)
             }
         }
 
-        // Poll the client sockets without blocking the thread
-        num_events = poll(ps.pfds, wsb.client_nb, 0);
+        // Poll the client sockets, timeout fixed to 3s
+        num_events = poll(ps.pfds, wsb.client_nb, 3000);
 
         if(num_events == -1)
         {
@@ -204,21 +204,19 @@ static void *remote_server_thread_handler(void *arg)
             {
                 if(ps.pfds[i].revents & POLLIN)
                 {
-                    // Clear recv buffers
-                    server_msg[0] = '\0';
-                    data[0] = '\0';
-
                     // Receive message from remote server
                     rd_bytes = server_read(ps.pfds[i].fd, server_msg, sizeof(server_msg));
 
-                    // Server connection disconnected or Error => send conn close msg to Websocket client
-                    if(rd_bytes <= 0)
+                    // read error
+                    if(rd_bytes < 0)
                     {
+                        printf("[%s:%d] Error : read failed - do not process.\n", __FUNCTION__, __LINE__);
+
+                    }
+                    else if(rd_bytes == 0)
+                    {
+                        // Server disconnected => send conn close msg to Websocket client
                         server_write(ps.sock_fd[i], WEBSOCKET_CONN_CLOSE, sizeof(WEBSOCKET_CONN_CLOSE));
-                        delete_client(ps.sock_fd[i]);
-                        close(ps.pfds[i].fd);
-                        close(ps.sock_fd[i]);
-                        ps.pfds[i].fd = -1;
                     }
                     else
                     {
@@ -226,7 +224,7 @@ static void *remote_server_thread_handler(void *arg)
                         printf("[%s:%d] remote server send msg to client id=%d : %s\n", __FUNCTION__, __LINE__, ps.sock_fd[i], server_msg);
 #endif
                         // Encode msg to Websocket format
-                        ws_frame_size = WEBSOCKET_set_content(server_msg, sizeof(server_msg), (unsigned char*) data, sizeof(data));
+                        ws_frame_size = WEBSOCKET_set_content(server_msg, rd_bytes, (unsigned char*) data, sizeof(data));
 
                         // Send message to the client
                         if(ws_frame_size > 0)
@@ -251,7 +249,7 @@ static void *remote_server_thread_handler(void *arg)
 /* Websocket thread handler */
 static void *websocket_thread_handler(void *arg)
 {
-    int num_events, ret;
+    int num_events, ret, rd_bytes;
     unsigned int nb, i;
     unsigned int events_found = 0;
     char client_ws_msg[1024], data[1024];
@@ -278,8 +276,8 @@ static void *websocket_thread_handler(void *arg)
             }
         }
 
-        // Poll the client sockets without blocking the thread
-        num_events = poll(ps.pfds, wsb.client_nb, 0);
+        // Poll the client sockets, timeout fixed to 3s
+        num_events = poll(ps.pfds, wsb.client_nb, 3000);
 
         if(num_events == -1)
         {
@@ -298,30 +296,47 @@ static void *websocket_thread_handler(void *arg)
                     data[0] = '\0';
 
                     // Receive Ws message from client
-                    server_read(ps.pfds[i].fd, client_ws_msg, sizeof(client_ws_msg));
-                    ret = WEBSOCKET_get_content(client_ws_msg, sizeof(client_ws_msg), (unsigned char*) data, sizeof(data));
+                    rd_bytes = server_read(ps.pfds[i].fd, client_ws_msg, sizeof(client_ws_msg));
 
-                    // Client disconnected => close also the socket with the remote server
-                    if(ret == -2)
+                    // read error
+                    if(rd_bytes < 0)
                     {
+                        printf("[%s:%d] Error : read failed - do not process.\n", __FUNCTION__, __LINE__);
+
+                    }
+                    else if(rd_bytes == 0)
+                    {
+                        // client disconnected
                         delete_client(ps.pfds[i].fd);
                         close(ps.pfds[i].fd);
-                        close(ps.sock_fd[i]);
                         ps.pfds[i].fd = -1;
-                    }
-                    else if(ret == -1)
-                    {
-                        printf("[%s:%d] Unknown error get webSocket content\n", __FUNCTION__, __LINE__);
                     }
                     else
                     {
-#if DEBUG
-                        printf("[%s:%d] client id=%d Receive msg : %s\n", __FUNCTION__, __LINE__, ps.pfds[i].fd, data);
-#endif
-                        // Send the msg to the remote server
-                        if(ps.sock_fd[i] != -1)
+                        // Message received
+                        ret = WEBSOCKET_get_content(client_ws_msg, sizeof(client_ws_msg), (unsigned char*) data, sizeof(data));
+
+                        // Client send Ws close msg
+                        if(ret == -2)
                         {
-                            server_write(ps.sock_fd[i], data, strlen(data));
+                            delete_client(ps.pfds[i].fd);
+                            close(ps.pfds[i].fd);
+                            ps.pfds[i].fd = -1;
+                        }
+                        else if(ret == -1)
+                        {
+                            printf("[%s:%d] Unknown error get webSocket content\n", __FUNCTION__, __LINE__);
+                        }
+                        else
+                        {
+#if DEBUG
+                            printf("[%s:%d] client id=%d Receive msg : %s\n", __FUNCTION__, __LINE__, ps.pfds[i].fd, data);
+#endif
+                            // Send the msg to the remote server
+                            if(ps.sock_fd[i] != -1)
+                            {
+                                server_write(ps.sock_fd[i], data, strlen(data));
+                            }
                         }
                     }
                     events_found++;
