@@ -132,6 +132,18 @@ static inline void GameDisplayPlayer(TGamePlayer *Pointer_Player)
 	}
 }
 
+/** A player has just died. Notify him and take his death into account in the game mechanisms.
+ * @param Pointer_Player The player that just died.
+ */
+static inline void GameSetPlayerDead(TGamePlayer *Pointer_Player)
+{
+	NetworkSendCommandDrawText(Pointer_Player, "You are dead !");
+	Pointer_Player->Is_Alive = 0;
+	Game_Alive_Players_Count--;
+	
+	// TODO handle scoring
+}
+
 /** Process a received event for a specific player.
  * @param Pointer_Player The player that has received an event.
  * @param Event The event received from the player.
@@ -318,7 +330,19 @@ static inline void GameProcessEvents(TGamePlayer *Pointer_Player, TNetworkEvent 
 	// Notify all clients that a player moved
 	if (Has_Player_Moved)
 	{
-		// Get item if there is one on the cell
+		// Cache the cell address
+		Pointer_Cell = &Map[Pointer_Player->Row][Pointer_Player->Column];
+		
+		// Is the cell exploding ?
+		if (Pointer_Cell->Explosion_State == MAP_EXPLOSION_STATE_REMOVE_EXPLOSION_TILE)
+		{
+			GameSetPlayerDead(Pointer_Player);
+			// Remove the player trace from all clients
+			for (i = 0; i < Game_Players_Count; i++) NetworkSendCommandDrawTile(&Game_Players[i], GAME_TILE_ID_EMPTY, Player_Previous_Row, Player_Previous_Column);
+			return;
+		}
+		
+		// Get item if there is one on the cell // TODO remove the cell content
 		switch (Cell_Content)
 		{
 			case MAP_CELL_CONTENT_ITEM_SHIELD:
@@ -338,7 +362,7 @@ static inline void GameProcessEvents(TGamePlayer *Pointer_Player, TNetworkEvent 
 				break;
 		}
 		
-		// Tell all clients to erase the player trace (prevous trace must always be erased because some player tile is thinner than other and superposition is visible)
+		// Tell all clients to erase the player trace (previous trace must always be erased because some player tile is thinner than other and superposition is visible)
 		for (i = 0; i < Game_Players_Count; i++) NetworkSendCommandDrawTile(&Game_Players[i], GAME_TILE_ID_EMPTY, Player_Previous_Row, Player_Previous_Column);
 		
 		// Display a bomb if there was one here
@@ -394,6 +418,13 @@ static inline void GameHandleBombs(void)
 				
 				// Reschedule the timer
 				Pointer_Cell->Explosion_Timer = CONFIGURATION_BOMB_EXPLOSION_PROPAGATION_TIME;
+				
+				// Handle player collision with bomb flames
+				// Is there one or more player(s) on this cell ?
+				for (i = 0; i < Game_Players_Count; i++)
+				{
+					if ((Game_Players[i].Row == Row) && (Game_Players[i].Column == Column)) GameSetPlayerDead(&Game_Players[i]);
+				}
 			}
 			// The explosion has just finished
 			else
@@ -421,18 +452,6 @@ static inline void GameHandleBombs(void)
 				}
 				// The cell was empty, let it empty
 				else Tile_ID = GAME_TILE_ID_EMPTY;
-				
-				// Handle player collision with bomb flames
-				// Is there one or more player(s) on this cell ?
-				for (i = 0; i < Game_Players_Count; i++)
-				{
-					if ((Game_Players[i].Row == Row) && (Game_Players[i].Column == Column))
-					{
-						NetworkSendCommandDrawText(&Game_Players[i], "You are dead !");
-						Game_Players[i].Is_Alive = 0;
-						Game_Alive_Players_Count--;
-					}
-				}
 			}
 			
 			// Tell all clients to display the sprite
