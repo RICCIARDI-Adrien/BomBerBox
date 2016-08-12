@@ -347,14 +347,17 @@ static inline void GameProcessEvents(TGamePlayer *Pointer_Player, TNetworkEvent 
 		{
 			case MAP_CELL_CONTENT_ITEM_SHIELD:
 				// TODO
+				Pointer_Cell->Content = MAP_CELL_CONTENT_EMPTY;
 				break;
 				
 			case MAP_CELL_CONTENT_ITEM_POWER_UP_BOMB_RANGE:
 				Pointer_Player->Explosion_Range++;
+				Pointer_Cell->Content = MAP_CELL_CONTENT_EMPTY;
 				break;
 				
 			case MAP_CELL_CONTENT_ITEM_POWER_UP_BOMBS_COUNT:
 				Pointer_Player->Bombs_Count++;
+				Pointer_Cell->Content = MAP_CELL_CONTENT_EMPTY;
 				break;
 				
 			// This is not a retrievable item 
