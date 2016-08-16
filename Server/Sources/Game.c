@@ -51,7 +51,7 @@ static inline void GameWaitForPlayersConnection(void)
 }
 
 /** Send the map to all connected clients. */
-static inline void GameInitializeMap(void)
+static inline void GameDisplayMap(void)
 {
 	int i, Row, Column;
 	
@@ -64,11 +64,28 @@ static inline void GameInitializeMap(void)
 	}
 }
 
+/** Tell all clients to display the specified player (automatically choose the right player tile according to the client).
+ * @param Pointer_Player The player to display.
+ */
+static inline void GameDisplayPlayer(TGamePlayer *Pointer_Player)
+{
+	int i;
+	TGameTileID Tile_ID;
+	
+	for (i = 0; i < Game_Players_Count; i++)
+	{
+		// Select the right tile to send according to the destination client
+		if (Game_Players[i].Socket == Pointer_Player->Socket) Tile_ID = GAME_TILE_ID_CURRENT_PLAYER;
+		else Tile_ID = GAME_TILE_ID_OTHER_PLAYER;
+	
+		NetworkSendCommandDrawTile(&Game_Players[i], Tile_ID, Pointer_Player->Row, Pointer_Player->Column);
+	}
+}
+
 /** Put all players on a different spawn point. */
 static inline void GameSpawnPlayers(void)
 {
-	int i, Row, Column, j;
-	TGameTileID Tile_ID;
+	int i, Row, Column;
 	
 	Game_Alive_Players_Count = 0;
 	
@@ -91,14 +108,7 @@ static inline void GameSpawnPlayers(void)
 		Game_Players[i].Explosion_Range = 2; // Take into account the explosion center too
 		
 		// Tell the clients to display the player
-		for (j = 0; j < Game_Players_Count; j++)
-		{
-			// Choose the right player tile according to the client
-			if (j == i) Tile_ID = GAME_TILE_ID_CURRENT_PLAYER; // The client must recognize it's own player
-			else Tile_ID = GAME_TILE_ID_OTHER_PLAYER;
-			
-			NetworkSendCommandDrawTile(&Game_Players[j], Tile_ID, Row, Column);
-		}
+		GameDisplayPlayer(&Game_Players[i]);
 	}
 }
 
@@ -120,24 +130,6 @@ static inline int GameIsPlayerMoveAllowed(TGamePlayer *Pointer_Player, TMapCellC
 	if ((Destination_Cell_Content == MAP_CELL_CONTENT_DESTRUCTIBLE_OBSTACLE) && (!Pointer_Player->Is_Ghost_Mode_Enabled)) return 0;
 
 	return 1;
-}
-
-/** Tell all clients to display the specified player (automatically choose the right player tile according to the client).
- * @param Pointer_Player The player to display.
- */
-static inline void GameDisplayPlayer(TGamePlayer *Pointer_Player)
-{
-	int i;
-	TGameTileID Tile_ID;
-	
-	for (i = 0; i < Game_Players_Count; i++)
-	{
-		// Select the right tile to send according to the destination client
-		if (Game_Players[i].Socket == Pointer_Player->Socket) Tile_ID = GAME_TILE_ID_CURRENT_PLAYER;
-		else Tile_ID = GAME_TILE_ID_OTHER_PLAYER;
-	
-		NetworkSendCommandDrawTile(&Game_Players[i], Tile_ID, Pointer_Player->Row, Pointer_Player->Column);
-	}
 }
 
 /** A player has just died. Notify him and take his death into account in the game mechanisms.
@@ -431,7 +423,7 @@ int GameLoop(int Expected_Players_Count)
 		printf("Map successfully loaded.\n");
 		
 		// Send the map to all players
-		GameInitializeMap();
+		GameDisplayMap();
 		printf("Map sent to players.\n");
 		
 		// Choose initial players location
