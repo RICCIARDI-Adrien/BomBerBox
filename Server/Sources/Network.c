@@ -153,6 +153,13 @@ int NetworkGetEvent(TGamePlayer *Pointer_Player, TNetworkEvent *Pointer_Event)
 	// Get the command
 	if (read(Pointer_Player->Socket, Command_Data, sizeof(Command_Data)) != sizeof(Command_Data))
 	{
+		if (errno == 0) // The player deconnected
+		{
+			close(Pointer_Player->Socket);
+			Pointer_Player->Socket = -1;
+			return 2;
+		}
+		
 		printf("[%s:%d] Error : failed to receive the 'get event' command (%s).\n", __FUNCTION__, __LINE__, strerror(errno));
 		return 1;
 	}
@@ -165,6 +172,9 @@ int NetworkGetEvent(TGamePlayer *Pointer_Player, TNetworkEvent *Pointer_Event)
 int NetworkSendCommandDrawTile(TGamePlayer *Pointer_Player, int Tile_ID, int Row, int Column)
 {
 	unsigned char Command_Data[4];
+	
+	// Ignore deconnected players
+	if (Pointer_Player->Socket == -1) return 0;
 	
 	// Prepare the command
 	Command_Data[0] = NETWORK_COMMAND_DRAW_TILE;
@@ -186,6 +196,9 @@ int NetworkSendCommandDrawText(TGamePlayer *Pointer_Player, char *String_Text)
 {
 	unsigned char Command_Data[2 + CONFIGURATION_COMMAND_DRAW_TEXT_MESSAGE_MAXIMUM_SIZE];
 	int Text_Size, Command_Size;
+	
+	// Ignore deconnected players
+	if (Pointer_Player->Socket == -1) return 0;
 	
 	// Prepare the command
 	Command_Data[0] = NETWORK_COMMAND_DRAW_TEXT;
