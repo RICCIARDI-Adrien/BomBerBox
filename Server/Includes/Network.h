@@ -48,8 +48,7 @@ void NetworkShutdownServer(void);
  * @param Pointer_Player The player to get event from.
  * @param Pointer_Event On output, contain the event received from the client.
  * @return 0 on success,
- * @return 1 if an error occurred,
- * @return 2 if the player just deconnected from the server.
+ * @return 1 if an error occurred.
  */
 int NetworkGetEvent(TGamePlayer *Pointer_Player, TNetworkEvent *Pointer_Event);
 

@@ -36,7 +36,7 @@ static inline void GameWaitForPlayersConnection(void)
 	for (i = 0; i < Game_Players_Count; i++)
 	{
 		// Wait for a client connection
-		if (NetworkWaitForPlayerConnection(&Game_Players[i].Socket, Game_Players[i].Name) != 0)
+		if (NetworkWaitForPlayerConnection(&Game_Players[i].Socket, Game_Players[i].String_Name) != 0)
 		{
 			printf("[%s:%d] Error : client #%d failed to connect.\n", __FUNCTION__, __LINE__, i + 1);
 			i--; // Do as if nothing happened to avoid kicking the other clients by stopping the server
@@ -46,7 +46,7 @@ static inline void GameWaitForPlayersConnection(void)
 		// Tell the client to wait for others
 		NetworkSendCommandDrawText(&Game_Players[i], "Successfully connected. Waiting for others...");
 		
-		printf("Client #%d connected, name : %s.\n", i + 1, Game_Players[i].Name);
+		printf("Client #%d connected, name : %s.\n", i + 1, Game_Players[i].String_Name);
 	}
 }
 
@@ -70,8 +70,13 @@ static inline void GameSpawnPlayers(void)
 	int i, Row, Column, j;
 	TGameTileID Tile_ID;
 	
+	Game_Alive_Players_Count = 0;
+	
 	for (i = 0; i < Game_Players_Count; i++)
 	{
+		// Do not spawn a disconnected player
+		if (Game_Players[i].Socket == -1) continue;
+		
 		// Get next spawn point coordinates
 		MapGetSpawnPointCoordinates(i, &Row, &Column);
 	
@@ -79,6 +84,7 @@ static inline void GameSpawnPlayers(void)
 		Game_Players[i].Row = Row;
 		Game_Players[i].Column = Column;
 		Game_Players[i].Is_Alive = 1;
+		Game_Alive_Players_Count++;
 		
 		// Initialize bombs
 		Game_Players[i].Bombs_Count = 1;
@@ -228,8 +234,17 @@ static inline void GameProcessEvents(TGamePlayer *Pointer_Player, TNetworkEvent 
 			
 			Pointer_Player->Bombs_Count--;
 			break;
+		
+		case NETWORK_EVENT_DISCONNECT:
+			// Consider the player as dead
+			GameSetPlayerDead(Pointer_Player);
 			
-		// TODO handle player deconnection (set player socket to -1 to disable network command functions)
+			// Remove the player tile from the map
+			for (i = 0; i < Game_Players_Count; i++) NetworkSendCommandDrawTile(&Game_Players[i], GAME_TILE_ID_EMPTY, Pointer_Player->Row, Pointer_Player->Column);
+			
+			Game_Connected_Players_Count--;
+			printf("%s leaved.\n", Pointer_Player->String_Name);
+			break;
 			
 		default:
 			printf("[%s:%d] Warning : unknown event (%d) from socket %d.\n", __FUNCTION__, __LINE__, Event, Pointer_Player->Socket);
@@ -377,11 +392,10 @@ static inline void GameHandleBombs(void)
 //-------------------------------------------------------------------------------------------------
 int GameLoop(int Expected_Players_Count)
 {
-	int i, j, Map_Spawn_Points_Count, Result;
+	int i, Map_Spawn_Points_Count;
 	TNetworkEvent Event;
 	struct timespec Time_To_Wait;
 	char String_Next_Round_Message[CONFIGURATION_MAXIMUM_PLAYER_NAME_LENGTH + 64]; // 64 bytes are enough for the static text
-	TGamePlayer *Pointer_Player;
 	
 	// Make sure everyone is in before starting the game
 	Game_Players_Count = Expected_Players_Count;
@@ -420,7 +434,6 @@ int GameLoop(int Expected_Players_Count)
 		
 		// Choose initial players location
 		GameSpawnPlayers();
-		Game_Alive_Players_Count = Game_Players_Count;
 		printf("Players spawned.\n");
 		
 		// Tell all clients that game is ready
@@ -440,22 +453,7 @@ int GameLoop(int Expected_Players_Count)
 			// Handle player events
 			for (i = 0; i < Game_Players_Count; i++)
 			{
-				Result = NetworkGetEvent(&Game_Players[i], &Event);
-				if (Result == 1) printf("[%s:%d] Error : failed to get the player #%d next event.\n", __FUNCTION__, __LINE__, i + 1);
-				else if (Result == 2)
-				{
-					// Cache the player address
-					Pointer_Player = &Game_Players[i];
-					
-					// Consider the player as dead
-					GameSetPlayerDead(Pointer_Player);
-					
-					// Remove the player tile from the map
-					for (j = 0; j < Game_Players_Count; j++) NetworkSendCommandDrawTile(&Game_Players[j], GAME_TILE_ID_EMPTY, Pointer_Player->Row, Pointer_Player->Column);
-					
-					Game_Connected_Players_Count--;
-					printf("Player #%d leaved.\n", i + 1);
-				}
+				if (NetworkGetEvent(&Game_Players[i], &Event) != 0) printf("[%s:%d] Error : failed to get the player #%d next event.\n", __FUNCTION__, __LINE__, i + 1);
 				else if (Event != NETWORK_EVENT_NONE) GameProcessEvents(&Game_Players[i], Event); // Avoid calling the function if there is nothing to do
 			}
 			
@@ -477,7 +475,7 @@ int GameLoop(int Expected_Players_Count)
 					}
 					
 					// Tell all players that he won
-					sprintf(String_Next_Round_Message, "%s has won ! %d seconds before next round...", Game_Players[i].Name, CONFIGURATION_SECONDS_BETWEEN_NEXT_ROUND);
+					sprintf(String_Next_Round_Message, "%s has won ! %d seconds before next round...", Game_Players[i].String_Name, CONFIGURATION_SECONDS_BETWEEN_NEXT_ROUND);
 				}
 				else sprintf(String_Next_Round_Message, "Everyone died. %d seconds before next round...", CONFIGURATION_SECONDS_BETWEEN_NEXT_ROUND);
 				

@@ -12,7 +12,7 @@
 /** A player attributes. */
 typedef struct
 {
-	char Name[CONFIGURATION_MAXIMUM_PLAYER_NAME_LENGTH]; //!< The player name.
+	char String_Name[CONFIGURATION_MAXIMUM_PLAYER_NAME_LENGTH]; //!< The player name.
 	int Socket; //!< The network socket used to communicate with the client.
 	int Row; //!< The player Y location on the map.
 	int Column; //!< The player X location on the map.
