@@ -408,6 +408,8 @@ int GameLoop(int Expected_Players_Count)
 		// Are there at least 2 players to make the game works ?
 		if (Game_Connected_Players_Count < 2)
 		{
+			// Inform all remaining players to quit
+			for (i = 0; i < Game_Players_Count; i++) NetworkSendCommandDrawText(&Game_Players[i], "Not enough players remaining, please quit the server to make it restart a game.");
 			printf("Only %d player remaining, shutting down the server.\n", Game_Connected_Players_Count);
 			return 0;
 		}
@@ -460,8 +462,8 @@ int GameLoop(int Expected_Players_Count)
 			// Handle bombs now that players may have moved to grant them more chances of survival
 			GameHandleBombs();
 			
-			// Wait for the required absolute time
-			if (clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &Time_To_Wait, NULL) != 0) printf("[%s:%d] Error : clock_nanosleep() failed (%s).\n", __FUNCTION__, __LINE__, strerror(errno));
+			// Exit game if there is only one (or zero) player remaining
+			if (Game_Connected_Players_Count < 2) break;
 			
 			// Is there a last player standing ?
 			if (Game_Alive_Players_Count <= 1) // One player remaining or all players dead
@@ -485,6 +487,11 @@ int GameLoop(int Expected_Players_Count)
 				
 				usleep(CONFIGURATION_SECONDS_BETWEEN_NEXT_ROUND * 1000000);
 				break;
+			}
+			else
+			{
+				// Wait for the required absolute time
+				if (clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &Time_To_Wait, NULL) != 0) printf("[%s:%d] Error : clock_nanosleep() failed (%s).\n", __FUNCTION__, __LINE__, strerror(errno));
 			}
 		}
 	}
