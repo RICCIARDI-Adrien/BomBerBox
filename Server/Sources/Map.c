@@ -192,7 +192,7 @@ void MapSpawnItem(int Row, int Column)
 	}
 	
 	// Select which item to spawn
-	switch (rand() % 3)
+	switch (rand() % 4)
 	{
 		case 0:
 			Pointer_Cell->Content = MAP_CELL_CONTENT_ITEM_SHIELD;
@@ -207,6 +207,11 @@ void MapSpawnItem(int Row, int Column)
 		case 2:
 			Pointer_Cell->Content = MAP_CELL_CONTENT_ITEM_POWER_UP_BOMBS_COUNT;
 			Pointer_Cell->Tile_ID = GAME_TILE_ITEM_POWER_UP_BOMBS_COUNT;
+			break;
+			
+		case 3:
+			GameDropBomb(Row, Column, (rand() % 3) + 2, NULL);
+			Pointer_Cell->Tile_ID = GAME_TILE_BOMB;
 			break;
 	}
 }

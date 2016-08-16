@@ -12,7 +12,7 @@
 /** A player attributes. */
 typedef struct
 {
-	char Name[CONFIGURATION_MAXIMUM_PLAYER_NAME_LENGTH]; //!< The player name.
+	char String_Name[CONFIGURATION_MAXIMUM_PLAYER_NAME_LENGTH]; //!< The player name.
 	int Socket; //!< The network socket used to communicate with the client.
 	int Row; //!< The player Y location on the map.
 	int Column; //!< The player X location on the map.
@@ -48,5 +48,15 @@ typedef enum
  * @return 1 if an error occurred.
  */
 int GameLoop(int Expected_Players_Count);
+
+/** Drop a bomb at the specified location on the map.
+ * @param Row The Y map cell location.
+ * @param Column The X map cell location.
+ * @param Explosion_Range How far the bomb will explode (1 = only the cell where the bomb is dropped, 2 = the cell containing the bomb plus one cell on each corner, ...).
+ * @param Pointer_Owner_Player Set to the player pointer if it was a player that dropped the bomb, set to NULL if the bomb was spawned as an item.
+ * @return 0 if the bomb was successfully dropped,
+ * @return 1 if the bomb could not be dropped.
+ */
+int GameDropBomb(int Row, int Column, int Explosion_Range, TGamePlayer *Pointer_Owner_Player);
 
 #endif

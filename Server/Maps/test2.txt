@@ -4,7 +4,7 @@ NN                NN
                     
                     
   WWW WWW  WW WWW   
-   W  W   WSN  W    
+   W  W   WSNN W    
    W  WWN  WN  W    
    W  WSN   W  W    
    W  WWW WW   W    
