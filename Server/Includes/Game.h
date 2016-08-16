@@ -49,4 +49,14 @@ typedef enum
  */
 int GameLoop(int Expected_Players_Count);
 
+/** Drop a bomb at the specified location on the map.
+ * @param Row The Y map cell location.
+ * @param Column The X map cell location.
+ * @param Explosion_Range How far the bomb will explode (1 = only the cell where the bomb is dropped, 2 = the cell containing the bomb plus one cell on each corner, ...).
+ * @param Pointer_Owner_Player Set to the player pointer if it was a player that dropped the bomb, set to NULL if the bomb was spawned as an item.
+ * @return 0 if the bomb was successfully dropped,
+ * @return 1 if the bomb could not be dropped.
+ */
+int GameDropBomb(int Row, int Column, int Explosion_Range, TGamePlayer *Pointer_Owner_Player);
+
 #endif
