@@ -410,7 +410,7 @@ int GameLoop(int Expected_Players_Count)
 		{
 			// Inform all remaining players to quit
 			for (i = 0; i < Game_Players_Count; i++) NetworkSendCommandDrawText(&Game_Players[i], "Not enough players remaining, please quit the server to make it restart a game.");
-			printf("Only %d player remaining, shutting down the server.\n", Game_Connected_Players_Count);
+			printf("Only %d player remaining, restarted server.\n", Game_Connected_Players_Count);
 			return 0;
 		}
 		

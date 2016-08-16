@@ -18,7 +18,7 @@ int main(int argc, char *argv[])
 {
 	char *String_IP_Address;
 	unsigned short Port;
-	int Expected_Players_Count, Return_Value;
+	int Expected_Players_Count;
 	
 	// Check parameters
 	if (argc != 4)
@@ -46,12 +46,15 @@ int main(int argc, char *argv[])
 	}
 	printf("Server up. Waiting for clients.\n");
 
-	// Start the game
-	if (GameLoop(Expected_Players_Count) != 0) Return_Value = EXIT_FAILURE;
-	else Return_Value = EXIT_SUCCESS;
-	
-	// Shutdown server
-	// TODO
-	
-	return Return_Value;
+	// Run the game forever
+	while (1)
+	{
+		if (GameLoop(Expected_Players_Count) != 0)
+		{
+			// Shutdown server
+			// TODO
+			
+			return EXIT_FAILURE;
+		}
+	}
 }
