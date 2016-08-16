@@ -22,6 +22,8 @@ static TGamePlayer Game_Players[CONFIGURATION_MAXIMUM_PLAYERS_COUNT];
 static int Game_Players_Count;
 /** How many alive players in the current game. */
 static int Game_Alive_Players_Count;
+/** How many connected players on the server. */
+static int Game_Connected_Players_Count;
 
 //-------------------------------------------------------------------------------------------------
 // Private functions
@@ -383,11 +385,19 @@ int GameLoop(int Expected_Players_Count)
 	
 	// Make sure everyone is in before starting the game
 	Game_Players_Count = Expected_Players_Count;
+	Game_Connected_Players_Count = Expected_Players_Count;
 	GameWaitForPlayersConnection();
 	
 	// Start a game
 	while (1)
 	{
+		// Are there at least 2 players to make the game works ?
+		if (Game_Connected_Players_Count < 2)
+		{
+			printf("Only %d player remaining, shutting down the server.\n", Game_Connected_Players_Count);
+			return 0;
+		}
+		
 		// Try to load a map
 		if (MapLoadRandom() != 0)
 		{
@@ -442,6 +452,8 @@ int GameLoop(int Expected_Players_Count)
 					
 					// Remove the player tile from the map
 					for (j = 0; j < Game_Players_Count; j++) NetworkSendCommandDrawTile(&Game_Players[j], GAME_TILE_ID_EMPTY, Pointer_Player->Row, Pointer_Player->Column);
+					
+					Game_Connected_Players_Count--;
 					printf("Player #%d leaved.\n", i + 1);
 				}
 				else if (Event != NETWORK_EVENT_NONE) GameProcessEvents(&Game_Players[i], Event); // Avoid calling the function if there is nothing to do
