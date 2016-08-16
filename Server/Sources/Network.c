@@ -201,7 +201,8 @@ int NetworkSendCommandDrawText(TGamePlayer *Pointer_Player, char *String_Text)
 	
 	// Prepare the command
 	Command_Data[0] = NETWORK_COMMAND_DRAW_TEXT;
-	Text_Size = strnlen(String_Text, CONFIGURATION_COMMAND_DRAW_TEXT_MESSAGE_MAXIMUM_SIZE);
+	Text_Size = strlen(String_Text);
+	if (Text_Size > CONFIGURATION_COMMAND_DRAW_TEXT_MESSAGE_MAXIMUM_SIZE) Text_Size = CONFIGURATION_COMMAND_DRAW_TEXT_MESSAGE_MAXIMUM_SIZE; // Can't use strnlen() on the cross toolchain
 	Command_Data[1] = (unsigned char) Text_Size;
 	memcpy(&Command_Data[2], String_Text, Text_Size);
 	
