@@ -147,12 +147,11 @@ static inline void GameSpawnPlayers(void)
 }
 
 /** Tell if a player can move to a specific map cell.
- * @param Pointer_Player The player.
  * @param Destination_Cell_Content The type of the destination cell.
  * @return 0 if the player can't go to this cell,
  * @return 1 if the player can reach this cell.
  */
-static inline int GameIsPlayerMoveAllowed(TGamePlayer *Pointer_Player, TMapCellContent Destination_Cell_Content)
+static inline int GameIsPlayerMoveAllowed(TMapCellContent Destination_Cell_Content)
 {
 	// The player can't cross the walls
 	if (Destination_Cell_Content == MAP_CELL_CONTENT_WALL) return 0;
@@ -196,7 +195,7 @@ static inline void GameProcessEvents(TGamePlayer *Pointer_Player, TNetworkEvent 
 			
 			// Check if the move is allowed
 			Cell_Content = Map[Pointer_Player->Row - 1][Pointer_Player->Column].Content;
-			if (!GameIsPlayerMoveAllowed(Pointer_Player, Cell_Content)) return;
+			if (!GameIsPlayerMoveAllowed(Cell_Content)) return;
 		
 			Player_Previous_Row = Pointer_Player->Row;
 			Player_Previous_Column = Pointer_Player->Column;
@@ -210,7 +209,7 @@ static inline void GameProcessEvents(TGamePlayer *Pointer_Player, TNetworkEvent 
 			
 			// Check if the move is allowed
 			Cell_Content = Map[Pointer_Player->Row + 1][Pointer_Player->Column].Content;
-			if (!GameIsPlayerMoveAllowed(Pointer_Player, Cell_Content)) return;
+			if (!GameIsPlayerMoveAllowed(Cell_Content)) return;
 		
 			Player_Previous_Row = Pointer_Player->Row;
 			Player_Previous_Column = Pointer_Player->Column;
@@ -224,7 +223,7 @@ static inline void GameProcessEvents(TGamePlayer *Pointer_Player, TNetworkEvent 
 			
 			// Check if the move is allowed
 			Cell_Content = Map[Pointer_Player->Row][Pointer_Player->Column - 1].Content;
-			if (!GameIsPlayerMoveAllowed(Pointer_Player, Cell_Content)) return;
+			if (!GameIsPlayerMoveAllowed(Cell_Content)) return;
 			
 			Player_Previous_Row = Pointer_Player->Row;
 			Player_Previous_Column = Pointer_Player->Column;
@@ -238,7 +237,7 @@ static inline void GameProcessEvents(TGamePlayer *Pointer_Player, TNetworkEvent 
 			
 			// Check if the move is allowed
 			Cell_Content = Map[Pointer_Player->Row][Pointer_Player->Column + 1].Content;
-			if (!GameIsPlayerMoveAllowed(Pointer_Player, Cell_Content)) return;
+			if (!GameIsPlayerMoveAllowed(Cell_Content)) return;
 			
 			Player_Previous_Row = Pointer_Player->Row;
 			Player_Previous_Column = Pointer_Player->Column;
