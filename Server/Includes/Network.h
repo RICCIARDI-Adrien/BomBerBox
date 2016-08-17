@@ -34,13 +34,13 @@ typedef enum
  */
 int NetworkCreateServer(char *String_IP_Address, unsigned short Port);
 
-/** Wait for a player to connect to the server.
- * @param Pointer_Player_Socket On output, will contain the player socket.
- * @param Pointer_Player_Name On output, contain the name of the player. The string must be CONFIGURATION_MAXIMUM_PLAYERS_COUNT bytes long.
- * @return 0 on success,
- * @return 1 if an error occurred.
+/** Tell whether a player has just connected or not.
+ * @param Pointer_Player_Socket On output, contain the player socket.
+ * @param String_Player_Name On output, contain the name of the player. The string must be CONFIGURATION_MAXIMUM_PLAYERS_COUNT bytes long.
+ * @return 0 if no player connected or if an error occurred,
+ * @return 1 if a player successfully connected.
  */
-int NetworkWaitForPlayerConnection(int *Pointer_Player_Socket, char *Pointer_Player_Name);
+int NetworkIsPlayerConnected(int *Pointer_Player_Socket, char *String_Player_Name);
 
 void NetworkShutdownServer(void);
 

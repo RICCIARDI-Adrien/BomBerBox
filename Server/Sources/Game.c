@@ -29,29 +29,63 @@ static int Game_Connected_Players_Count;
 // Private functions
 //-------------------------------------------------------------------------------------------------
 /** Wait for all clients to connect. */
+// TODO handle player disconnection
 static inline void GameWaitForPlayersConnection(void)
 {
-	int i;
-	
-	for (i = 0; i < Game_Players_Count; i++)
+	int i, Is_Player_Ready[CONFIGURATION_MAXIMUM_PLAYERS_COUNT] = {0};
+	TNetworkEvent Event;
+	struct timespec Waiting_Time =
 	{
-		// Wait for a client connection
-		if (NetworkWaitForPlayerConnection(&Game_Players[i].Socket, Game_Players[i].String_Name) != 0)
+		.tv_sec = 0,
+		.tv_nsec = CONFIGURATION_GAME_TICK
+	};
+	
+	Game_Players_Count = 0;
+	
+	while (1)
+	{
+		// Check for a new player connection if there remain free player slots
+		if (Game_Players_Count < CONFIGURATION_MAXIMUM_PLAYERS_COUNT)
 		{
-			printf("[%s:%d] Error : client #%d failed to connect.\n", __FUNCTION__, __LINE__, i + 1);
-			i--; // Do as if nothing happened to avoid kicking the other clients by stopping the server
-			continue;
+			// Did a new player attempted connection ?
+			if (NetworkIsPlayerConnected(&Game_Players[Game_Players_Count].Socket, Game_Players[Game_Players_Count].String_Name))
+			{
+				NetworkSendCommandDrawText(&Game_Players[Game_Players_Count], "Hit Space when all players are ready.");
+				printf("Client #%d connected, name : %s.\n", Game_Players_Count + 1, Game_Players[Game_Players_Count].String_Name);
+				Game_Players_Count++;
+			}
 		}
 		
-		// Tell the client to wait for others
-		NetworkSendCommandDrawText(&Game_Players[i], "Successfully connected. Waiting for others...");
+		// Check if a player hit the ready key
+		for (i = 0; i < Game_Players_Count; i++)
+		{
+			if (NetworkGetEvent(&Game_Players[i], &Event) != 0) printf("[%s:%d] Error : failed to get player #%d event (%s).\n", __FUNCTION__, __LINE__, i + 1, strerror(errno));
+			else if (Event == NETWORK_EVENT_DROP_BOMB)
+			{
+				Is_Player_Ready[i] = 1;
+				NetworkSendCommandDrawText(&Game_Players[i], "You are ready. Waiting for others...");
+				printf("Player #%d is ready.\n", i + 1);
+			}
+		}
 		
-		printf("Client #%d connected, name : %s.\n", i + 1, Game_Players[i].String_Name);
+		// Are all connected players ready to start the game ?
+		if (Game_Players_Count >= 2) // Almost 2 players are needed to start the game
+		{
+			// Are all players ready ?
+			for (i = 0; i < Game_Players_Count; i++)
+			{
+				if (!Is_Player_Ready[i]) break;
+			}
+			if (i == Game_Players_Count) return; // All players are ready
+		}
+		
+		// Wait some time to avoid 100% CPU usage
+		nanosleep(&Waiting_Time, NULL);
 	}
 }
 
 /** Send the map to all connected clients. */
-static inline void GameInitializeMap(void)
+static inline void GameDisplayMap(void)
 {
 	int i, Row, Column;
 	
@@ -64,11 +98,28 @@ static inline void GameInitializeMap(void)
 	}
 }
 
+/** Tell all clients to display the specified player (automatically choose the right player tile according to the client).
+ * @param Pointer_Player The player to display.
+ */
+static inline void GameDisplayPlayer(TGamePlayer *Pointer_Player)
+{
+	int i;
+	TGameTileID Tile_ID;
+	
+	for (i = 0; i < Game_Players_Count; i++)
+	{
+		// Select the right tile to send according to the destination client
+		if (Game_Players[i].Socket == Pointer_Player->Socket) Tile_ID = GAME_TILE_ID_CURRENT_PLAYER;
+		else Tile_ID = GAME_TILE_ID_OTHER_PLAYER;
+	
+		NetworkSendCommandDrawTile(&Game_Players[i], Tile_ID, Pointer_Player->Row, Pointer_Player->Column);
+	}
+}
+
 /** Put all players on a different spawn point. */
 static inline void GameSpawnPlayers(void)
 {
-	int i, Row, Column, j;
-	TGameTileID Tile_ID;
+	int i, Row, Column;
 	
 	Game_Alive_Players_Count = 0;
 	
@@ -91,24 +142,16 @@ static inline void GameSpawnPlayers(void)
 		Game_Players[i].Explosion_Range = 2; // Take into account the explosion center too
 		
 		// Tell the clients to display the player
-		for (j = 0; j < Game_Players_Count; j++)
-		{
-			// Choose the right player tile according to the client
-			if (j == i) Tile_ID = GAME_TILE_ID_CURRENT_PLAYER; // The client must recognize it's own player
-			else Tile_ID = GAME_TILE_ID_OTHER_PLAYER;
-			
-			NetworkSendCommandDrawTile(&Game_Players[j], Tile_ID, Row, Column);
-		}
+		GameDisplayPlayer(&Game_Players[i]);
 	}
 }
 
 /** Tell if a player can move to a specific map cell.
- * @param Pointer_Player The player.
  * @param Destination_Cell_Content The type of the destination cell.
  * @return 0 if the player can't go to this cell,
  * @return 1 if the player can reach this cell.
  */
-static inline int GameIsPlayerMoveAllowed(TGamePlayer *Pointer_Player, TMapCellContent Destination_Cell_Content)
+static inline int GameIsPlayerMoveAllowed(TMapCellContent Destination_Cell_Content)
 {
 	// The player can't cross the walls
 	if (Destination_Cell_Content == MAP_CELL_CONTENT_WALL) return 0;
@@ -116,28 +159,10 @@ static inline int GameIsPlayerMoveAllowed(TGamePlayer *Pointer_Player, TMapCellC
 	// The player can't cross a bomb
 	if (Destination_Cell_Content == MAP_CELL_CONTENT_BOMB) return 0;
 	
-	// Is the player in ghost mode ?
-	if ((Destination_Cell_Content == MAP_CELL_CONTENT_DESTRUCTIBLE_OBSTACLE) && (!Pointer_Player->Is_Ghost_Mode_Enabled)) return 0;
+	// The player can't cross a destructible obstacle
+	if (Destination_Cell_Content == MAP_CELL_CONTENT_DESTRUCTIBLE_OBSTACLE) return 0;
 
 	return 1;
-}
-
-/** Tell all clients to display the specified player (automatically choose the right player tile according to the client).
- * @param Pointer_Player The player to display.
- */
-static inline void GameDisplayPlayer(TGamePlayer *Pointer_Player)
-{
-	int i;
-	TGameTileID Tile_ID;
-	
-	for (i = 0; i < Game_Players_Count; i++)
-	{
-		// Select the right tile to send according to the destination client
-		if (Game_Players[i].Socket == Pointer_Player->Socket) Tile_ID = GAME_TILE_ID_CURRENT_PLAYER;
-		else Tile_ID = GAME_TILE_ID_OTHER_PLAYER;
-	
-		NetworkSendCommandDrawTile(&Game_Players[i], Tile_ID, Pointer_Player->Row, Pointer_Player->Column);
-	}
 }
 
 /** A player has just died. Notify him and take his death into account in the game mechanisms.
@@ -170,7 +195,7 @@ static inline void GameProcessEvents(TGamePlayer *Pointer_Player, TNetworkEvent 
 			
 			// Check if the move is allowed
 			Cell_Content = Map[Pointer_Player->Row - 1][Pointer_Player->Column].Content;
-			if (!GameIsPlayerMoveAllowed(Pointer_Player, Cell_Content)) return;
+			if (!GameIsPlayerMoveAllowed(Cell_Content)) return;
 		
 			Player_Previous_Row = Pointer_Player->Row;
 			Player_Previous_Column = Pointer_Player->Column;
@@ -184,7 +209,7 @@ static inline void GameProcessEvents(TGamePlayer *Pointer_Player, TNetworkEvent 
 			
 			// Check if the move is allowed
 			Cell_Content = Map[Pointer_Player->Row + 1][Pointer_Player->Column].Content;
-			if (!GameIsPlayerMoveAllowed(Pointer_Player, Cell_Content)) return;
+			if (!GameIsPlayerMoveAllowed(Cell_Content)) return;
 		
 			Player_Previous_Row = Pointer_Player->Row;
 			Player_Previous_Column = Pointer_Player->Column;
@@ -198,7 +223,7 @@ static inline void GameProcessEvents(TGamePlayer *Pointer_Player, TNetworkEvent 
 			
 			// Check if the move is allowed
 			Cell_Content = Map[Pointer_Player->Row][Pointer_Player->Column - 1].Content;
-			if (!GameIsPlayerMoveAllowed(Pointer_Player, Cell_Content)) return;
+			if (!GameIsPlayerMoveAllowed(Cell_Content)) return;
 			
 			Player_Previous_Row = Pointer_Player->Row;
 			Player_Previous_Column = Pointer_Player->Column;
@@ -212,7 +237,7 @@ static inline void GameProcessEvents(TGamePlayer *Pointer_Player, TNetworkEvent 
 			
 			// Check if the move is allowed
 			Cell_Content = Map[Pointer_Player->Row][Pointer_Player->Column + 1].Content;
-			if (!GameIsPlayerMoveAllowed(Pointer_Player, Cell_Content)) return;
+			if (!GameIsPlayerMoveAllowed(Cell_Content)) return;
 			
 			Player_Previous_Row = Pointer_Player->Row;
 			Player_Previous_Column = Pointer_Player->Column;
@@ -390,7 +415,7 @@ static inline void GameHandleBombs(void)
 //-------------------------------------------------------------------------------------------------
 // Public functions
 //-------------------------------------------------------------------------------------------------
-int GameLoop(int Expected_Players_Count)
+int GameLoop(void)
 {
 	int i, Map_Spawn_Points_Count;
 	TNetworkEvent Event;
@@ -398,9 +423,9 @@ int GameLoop(int Expected_Players_Count)
 	char String_Next_Round_Message[CONFIGURATION_MAXIMUM_PLAYER_NAME_LENGTH + 64]; // 64 bytes are enough for the static text
 	
 	// Make sure everyone is in before starting the game
-	Game_Players_Count = Expected_Players_Count;
-	Game_Connected_Players_Count = Expected_Players_Count;
 	GameWaitForPlayersConnection();
+	Game_Alive_Players_Count = Game_Players_Count;
+	Game_Connected_Players_Count = Game_Players_Count;
 	
 	// Start a game
 	while (1)
@@ -408,7 +433,9 @@ int GameLoop(int Expected_Players_Count)
 		// Are there at least 2 players to make the game works ?
 		if (Game_Connected_Players_Count < 2)
 		{
-			printf("Only %d player remaining, shutting down the server.\n", Game_Connected_Players_Count);
+			// Inform all remaining players to quit
+			for (i = 0; i < Game_Players_Count; i++) NetworkSendCommandDrawText(&Game_Players[i], "Not enough players remaining, please quit the server to make it restart a game.");
+			printf("Only %d player remaining, restarted server.\n", Game_Connected_Players_Count);
 			return 0;
 		}
 		
@@ -429,7 +456,7 @@ int GameLoop(int Expected_Players_Count)
 		printf("Map successfully loaded.\n");
 		
 		// Send the map to all players
-		GameInitializeMap();
+		GameDisplayMap();
 		printf("Map sent to players.\n");
 		
 		// Choose initial players location
@@ -453,6 +480,9 @@ int GameLoop(int Expected_Players_Count)
 			// Handle player events
 			for (i = 0; i < Game_Players_Count; i++)
 			{
+				// Ignore dead players
+				if (!Game_Players[i].Is_Alive) continue;
+				
 				if (NetworkGetEvent(&Game_Players[i], &Event) != 0) printf("[%s:%d] Error : failed to get the player #%d next event.\n", __FUNCTION__, __LINE__, i + 1);
 				else if (Event != NETWORK_EVENT_NONE) GameProcessEvents(&Game_Players[i], Event); // Avoid calling the function if there is nothing to do
 			}
@@ -460,8 +490,8 @@ int GameLoop(int Expected_Players_Count)
 			// Handle bombs now that players may have moved to grant them more chances of survival
 			GameHandleBombs();
 			
-			// Wait for the required absolute time
-			if (clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &Time_To_Wait, NULL) != 0) printf("[%s:%d] Error : clock_nanosleep() failed (%s).\n", __FUNCTION__, __LINE__, strerror(errno));
+			// Exit game if there is only one (or zero) player remaining
+			if (Game_Connected_Players_Count < 2) break;
 			
 			// Is there a last player standing ?
 			if (Game_Alive_Players_Count <= 1) // One player remaining or all players dead
@@ -485,6 +515,11 @@ int GameLoop(int Expected_Players_Count)
 				
 				usleep(CONFIGURATION_SECONDS_BETWEEN_NEXT_ROUND * 1000000);
 				break;
+			}
+			else
+			{
+				// Wait for the required absolute time
+				if (clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &Time_To_Wait, NULL) != 0) printf("[%s:%d] Error : clock_nanosleep() failed (%s).\n", __FUNCTION__, __LINE__, strerror(errno));
 			}
 		}
 	}

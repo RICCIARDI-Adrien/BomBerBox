@@ -6,6 +6,8 @@
 #ifndef H_GAME_H
 #define H_GAME_H
 
+#include <Configuration.h>
+
 //-------------------------------------------------------------------------------------------------
 // Types
 //-------------------------------------------------------------------------------------------------
@@ -20,7 +22,6 @@ typedef struct
 	int Explosion_Range; //!< How many cells an explosion can reach.
 	int Is_Alive; //!< Tell if the player is alive or not.
 	// TODO bonus items
-	int Is_Ghost_Mode_Enabled; //!< Tell if the player can cross the destructible objects or not.
 } TGamePlayer;
 
 /** All available tiles. */
@@ -33,7 +34,7 @@ typedef enum
 	GAME_TILE_ID_OTHER_PLAYER,
 	GAME_TILE_BOMB,
 	GAME_TILE_EXPLOSION,
-	GAME_TILE_ITEM_GHOST,
+	GAME_TILE_ITEM_GHOST, // Not used
 	GAME_TILE_ITEM_SHIELD,
 	GAME_TILE_ITEM_POWER_UP_BOMB_RANGE,
 	GAME_TILE_ITEM_POWER_UP_BOMBS_COUNT
@@ -43,11 +44,10 @@ typedef enum
 // Functions
 //-------------------------------------------------------------------------------------------------
 /** Wait for the players to connect and start the game.
- * @param Expected_Players_Count How many players to wait for.
  * @return 0 if no error occurred,
  * @return 1 if an error occurred.
  */
-int GameLoop(int Expected_Players_Count);
+int GameLoop(void);
 
 /** Drop a bomb at the specified location on the map.
  * @param Row The Y map cell location.

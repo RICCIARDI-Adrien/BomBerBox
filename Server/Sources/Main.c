@@ -3,7 +3,6 @@
  * @author Adrien RICCIARDI
  */
 
-#include <Configuration.h>
 #include <Game.h>
 #include <Map.h>
 #include <Network.h>
@@ -18,22 +17,15 @@ int main(int argc, char *argv[])
 {
 	char *String_IP_Address;
 	unsigned short Port;
-	int Expected_Players_Count, Return_Value;
 	
 	// Check parameters
-	if (argc != 4)
+	if (argc != 3)
 	{
-		printf("Usage : %s IP_Address Port Expected_Players_Count\n", argv[0]);
+		printf("Usage : %s IP_Address Port\n", argv[0]);
 		return EXIT_FAILURE;
 	}
 	String_IP_Address = argv[1];
 	Port = atoi(argv[2]);
-	Expected_Players_Count = atoi(argv[3]);
-	if ((Expected_Players_Count <= 1) || (Expected_Players_Count > CONFIGURATION_MAXIMUM_PLAYERS_COUNT))
-	{
-		printf("[%s:%d] Error : minimum expected players are 2, maximum expected players are %d.\n", __FUNCTION__, __LINE__, CONFIGURATION_MAXIMUM_PLAYERS_COUNT);
-		return EXIT_FAILURE;
-	}
 	
 	// Initialize random numbers generator
 	srand(time(NULL));
@@ -46,12 +38,15 @@ int main(int argc, char *argv[])
 	}
 	printf("Server up. Waiting for clients.\n");
 
-	// Start the game
-	if (GameLoop(Expected_Players_Count) != 0) Return_Value = EXIT_FAILURE;
-	else Return_Value = EXIT_SUCCESS;
-	
-	// Shutdown server
-	// TODO
-	
-	return Return_Value;
+	// Run the game forever
+	while (1)
+	{
+		if (GameLoop() != 0)
+		{
+			// Shutdown server
+			// TODO
+			
+			return EXIT_FAILURE;
+		}
+	}
 }
