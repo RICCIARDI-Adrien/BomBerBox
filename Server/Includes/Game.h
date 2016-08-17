@@ -6,6 +6,8 @@
 #ifndef H_GAME_H
 #define H_GAME_H
 
+#include <Configuration.h>
+
 //-------------------------------------------------------------------------------------------------
 // Types
 //-------------------------------------------------------------------------------------------------
@@ -43,11 +45,10 @@ typedef enum
 // Functions
 //-------------------------------------------------------------------------------------------------
 /** Wait for the players to connect and start the game.
- * @param Expected_Players_Count How many players to wait for.
  * @return 0 if no error occurred,
  * @return 1 if an error occurred.
  */
-int GameLoop(int Expected_Players_Count);
+int GameLoop(void);
 
 /** Drop a bomb at the specified location on the map.
  * @param Row The Y map cell location.

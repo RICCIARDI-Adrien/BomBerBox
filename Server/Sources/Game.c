@@ -29,24 +29,60 @@ static int Game_Connected_Players_Count;
 // Private functions
 //-------------------------------------------------------------------------------------------------
 /** Wait for all clients to connect. */
+// TODO handle player disconnection
 static inline void GameWaitForPlayersConnection(void)
 {
-	int i;
-	
-	for (i = 0; i < Game_Players_Count; i++)
+	int i, Is_Player_Ready[CONFIGURATION_MAXIMUM_PLAYERS_COUNT] = {0};
+	TNetworkEvent Event;
+	struct timespec Waiting_Time =
 	{
-		// Wait for a client connection
-		if (NetworkWaitForPlayerConnection(&Game_Players[i].Socket, Game_Players[i].String_Name) != 0)
+		.tv_sec = 0,
+		.tv_nsec = CONFIGURATION_GAME_TICK
+	};
+	
+	Game_Players_Count = 0;
+	
+	while (1)
+	{
+		// Check for a new player connection if there remain free player slots
+		if (Game_Players_Count < CONFIGURATION_MAXIMUM_PLAYERS_COUNT)
 		{
-			printf("[%s:%d] Error : client #%d failed to connect.\n", __FUNCTION__, __LINE__, i + 1);
-			i--; // Do as if nothing happened to avoid kicking the other clients by stopping the server
-			continue;
+			// Did a new player attempted connection ?
+			if (NetworkCheckPlayerConnection(&Game_Players[Game_Players_Count].Socket, Game_Players[Game_Players_Count].String_Name) != 0) printf("[%s:%d] Error : client #%d failed to connect.\n", __FUNCTION__, __LINE__, Game_Players_Count + 1);
+			// The socket value is different from -1 if a player connected, otherwise no player attempted to connect
+			if (Game_Players[Game_Players_Count].Socket != -1)
+			{
+				NetworkSendCommandDrawText(&Game_Players[Game_Players_Count], "Hit Space when all players are ready.");
+				printf("Client #%d connected, name : %s.\n", Game_Players_Count + 1, Game_Players[Game_Players_Count].String_Name);
+				Game_Players_Count++;
+			}
 		}
 		
-		// Tell the client to wait for others
-		NetworkSendCommandDrawText(&Game_Players[i], "Successfully connected. Waiting for others...");
+		// Check if a player hit the ready key
+		for (i = 0; i < Game_Players_Count; i++)
+		{
+			if (NetworkGetEvent(&Game_Players[i], &Event) != 0) printf("[%s:%d] Error : failed to get player #%d event (%s).\n", __FUNCTION__, __LINE__, i + 1, strerror(errno));
+			else if (Event == NETWORK_EVENT_DROP_BOMB)
+			{
+				Is_Player_Ready[i] = 1;
+				NetworkSendCommandDrawText(&Game_Players[i], "You are ready. Waiting for others...");
+				printf("Player #%d is ready.\n", i + 1);
+			}
+		}
 		
-		printf("Client #%d connected, name : %s.\n", i + 1, Game_Players[i].String_Name);
+		// Are all connected players ready to start the game ?
+		if (Game_Players_Count >= 2) // Almost 2 players are needed to start the game
+		{
+			// Are all players ready ?
+			for (i = 0; i < Game_Players_Count; i++)
+			{
+				if (!Is_Player_Ready[i]) break;
+			}
+			if (i == Game_Players_Count) return; // All players are ready
+		}
+		
+		// Wait some time to avoid 100% CPU usage
+		nanosleep(&Waiting_Time, NULL);
 	}
 }
 
@@ -382,7 +418,7 @@ static inline void GameHandleBombs(void)
 //-------------------------------------------------------------------------------------------------
 // Public functions
 //-------------------------------------------------------------------------------------------------
-int GameLoop(int Expected_Players_Count)
+int GameLoop(void)
 {
 	int i, Map_Spawn_Points_Count;
 	TNetworkEvent Event;
@@ -390,9 +426,9 @@ int GameLoop(int Expected_Players_Count)
 	char String_Next_Round_Message[CONFIGURATION_MAXIMUM_PLAYER_NAME_LENGTH + 64]; // 64 bytes are enough for the static text
 	
 	// Make sure everyone is in before starting the game
-	Game_Players_Count = Expected_Players_Count;
-	Game_Connected_Players_Count = Expected_Players_Count;
 	GameWaitForPlayersConnection();
+	Game_Alive_Players_Count = Game_Players_Count;
+	Game_Connected_Players_Count = Game_Players_Count;
 	
 	// Start a game
 	while (1)
@@ -447,6 +483,9 @@ int GameLoop(int Expected_Players_Count)
 			// Handle player events
 			for (i = 0; i < Game_Players_Count; i++)
 			{
+				// Ignore dead players
+				if (!Game_Players[i].Is_Alive) continue;
+				
 				if (NetworkGetEvent(&Game_Players[i], &Event) != 0) printf("[%s:%d] Error : failed to get the player #%d next event.\n", __FUNCTION__, __LINE__, i + 1);
 				else if (Event != NETWORK_EVENT_NONE) GameProcessEvents(&Game_Players[i], Event); // Avoid calling the function if there is nothing to do
 			}

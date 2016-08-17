@@ -67,18 +67,45 @@ int NetworkCreateServer(char *String_IP_Address, unsigned short Port)
 		return 1;
 	}
 	
-	return 0;
-}
-
-int NetworkWaitForPlayerConnection(int *Pointer_Player_Socket, char *Pointer_Player_Name)
-{
-	unsigned char Command_Code;
-	
 	// Tell how many connections to wait for
 	if (listen(Network_Server_Socket, CONFIGURATION_MAXIMUM_PLAYERS_COUNT) == -1)
 	{
 		printf("[%s:%d] Error : listen() failed (%s).\n", __FUNCTION__, __LINE__, strerror(errno));
+		close(Network_Server_Socket);
 		return 1;
+	}
+	
+	return 0;
+}
+
+int NetworkCheckPlayerConnection(int *Pointer_Player_Socket, char *String_Player_Name)
+{
+	int Events_Count;
+	fd_set File_Descriptors_Set;
+	struct timeval Select_Timeout;
+	unsigned char Command_Code;
+	
+	// Create the set of file descriptors (it must created for each call)
+	FD_ZERO(&File_Descriptors_Set);
+	FD_SET(Network_Server_Socket, &File_Descriptors_Set);
+		
+	// Set the timeout value to zero to make select() instantly return (it must be reset each time too)
+	Select_Timeout.tv_sec = 0;
+	Select_Timeout.tv_usec = 0;
+	
+	// Use select() as it can poll a blocking socket without blocking the program
+	Events_Count = select(Network_Server_Socket + 1, &File_Descriptors_Set, NULL, NULL, &Select_Timeout);
+	if (Events_Count == -1)
+	{
+		printf("[%s:%d] Error : select() failed (%s).\n", __FUNCTION__, __LINE__, strerror(errno));
+		return 1;
+	}
+	
+	// No client attempted to connect
+	if (Events_Count == 0)
+	{
+		*Pointer_Player_Socket = -1;
+		return 0;
 	}
 	
 	// Try to connect the client
@@ -101,12 +128,12 @@ int NetworkWaitForPlayerConnection(int *Pointer_Player_Socket, char *Pointer_Pla
 	} while (Command_Code != NETWORK_COMMAND_CONNECT_TO_SERVER);
 	
 	// Get the command payload
-	if (read(*Pointer_Player_Socket, Pointer_Player_Name, CONFIGURATION_MAXIMUM_PLAYER_NAME_LENGTH - 1) < 1)
+	if (read(*Pointer_Player_Socket, String_Player_Name, CONFIGURATION_MAXIMUM_PLAYER_NAME_LENGTH - 1) < 1)
 	{
 		printf("[%s:%d] Error : failed to read the player name (%s).\n", __FUNCTION__, __LINE__, strerror(errno));
 		return 1;
 	}
-	Pointer_Player_Name[CONFIGURATION_MAXIMUM_PLAYER_NAME_LENGTH - 1] = 0; // Force a terminating zero
+	String_Player_Name[CONFIGURATION_MAXIMUM_PLAYER_NAME_LENGTH - 1] = 0; // Force a terminating zero
 		
 	return 0;
 }
@@ -118,8 +145,8 @@ int NetworkGetEvent(TGamePlayer *Pointer_Player, TNetworkEvent *Pointer_Event)
 	struct timeval Select_Timeout;
 	unsigned char Command_Data[2];
 	
-	// Ignore dead players
-	if (!Pointer_Player->Is_Alive)
+	// Ignore disconnected players
+	if (Pointer_Player->Socket == -1)
 	{
 		*Pointer_Event = NETWORK_EVENT_NONE;
 		return 0;
