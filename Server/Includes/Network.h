@@ -14,13 +14,13 @@
 /** All events that can be received from a client. */
 typedef enum
 {
+	NETWORK_EVENT_NONE, //!< No event was sent by the client.
 	NETWORK_EVENT_GO_UP, //!< The client pressed the "up" button.
 	NETWORK_EVENT_GO_DOWN, //!< The client pressed the "down" button.
 	NETWORK_EVENT_GO_LEFT, //!< The client pressed the "left" button.
 	NETWORK_EVENT_GO_RIGHT, //!< The client pressed the "right" button.
 	NETWORK_EVENT_DROP_BOMB, //!< The client pressed the "drop bomb" button.
-	NETWORK_EVENT_DISCONNECT, //!< The client exited.
-	NETWORK_EVENT_NONE //!< No event was sent by the client.
+	NETWORK_EVENT_DISCONNECT //!< The client exited.
 } TNetworkEvent;
 
 //-------------------------------------------------------------------------------------------------
