@@ -22,7 +22,7 @@ enum _nw_command_type {
 typedef enum _nw_command_type nw_command_type_t;
 
 enum _nw_cmd_input_value {
-    NW_COMMAND_INPUT_UP,
+    NW_COMMAND_INPUT_UP = 0x1,
     NW_COMMAND_INPUT_DOWN,
     NW_COMMAND_INPUT_LEFT,
     NW_COMMAND_INPUT_RIGHT,
