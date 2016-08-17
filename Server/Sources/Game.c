@@ -172,11 +172,16 @@ static inline int GameIsPlayerMoveAllowed(TMapCellContent Destination_Cell_Conte
  */
 static inline void GameSetPlayerDead(TGamePlayer *Pointer_Player)
 {
+	// Do not kill the player more than once
+	if (!Pointer_Player->Is_Alive) return;
+	
 	NetworkSendCommandDrawText(Pointer_Player, "You are dead !");
 	Pointer_Player->Is_Alive = 0;
 	Game_Alive_Players_Count--;
 	
 	// TODO handle scoring
+	
+	printf("%s is dead.\n", Pointer_Player->String_Name);
 }
 
 /** Process a received event for a specific player.
@@ -426,7 +431,6 @@ int GameLoop(void)
 	
 	// Make sure everyone is in before starting the game
 	GameWaitForPlayersConnection();
-	Game_Alive_Players_Count = Game_Players_Count;
 	Game_Connected_Players_Count = Game_Players_Count;
 	
 	// Start a game
