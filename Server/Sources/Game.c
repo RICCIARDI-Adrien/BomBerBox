@@ -40,7 +40,9 @@ static inline void GameWaitForPlayersConnection(void)
 		.tv_nsec = CONFIGURATION_GAME_TICK
 	};
 	
+	// Reset players data
 	Game_Players_Count = 0;
+	for (i = 0; i < CONFIGURATION_MAXIMUM_PLAYERS_COUNT; i++) memset(Game_Players[i].String_Name, 0, sizeof(Game_Players[i].String_Name)); // Clear name buffers
 	
 	while (1)
 	{
