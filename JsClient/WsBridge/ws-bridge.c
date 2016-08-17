@@ -165,7 +165,7 @@ static void *remote_server_thread_handler(void *arg)
     int num_events, ws_frame_size;
     unsigned int nb, i, rd_bytes;
     unsigned int events_found = 0;
-    char server_msg[1024], data[1024];
+    char server_msg[4096], data[4096];
     t_wsb_poll_struct ps;
 
     // Clear/Init all file descriptors
@@ -241,7 +241,7 @@ static void *remote_server_thread_handler(void *arg)
             }
         }
     }
-    printf("[%s:%d] Exit websocket thread\n", __FUNCTION__, __LINE__);
+    printf("[%s:%d] Exit remote server thread\n", __FUNCTION__, __LINE__);
 
     return NULL;
 }
@@ -252,7 +252,7 @@ static void *websocket_thread_handler(void *arg)
     int num_events, ret, rd_bytes;
     unsigned int nb, i;
     unsigned int events_found = 0;
-    char client_ws_msg[1024], data[1024];
+    char client_ws_msg[4096], data[4096];
     t_wsb_poll_struct ps;
 
     // Clear/Init all file descriptors
@@ -410,6 +410,28 @@ static int server_wait_client(int sockfd)
     struct sockaddr_in cli_addr;
     socklen_t clilen;
     char buffer[1024], response[1024];
+    int events_count;
+    fd_set fds;
+    struct timeval timeout;
+
+    // Create the set of file descriptors (it must created for each call)
+    FD_ZERO(&fds);
+    FD_SET(sockfd, &fds);
+
+    // Set the timeout value to zero to make select() instantly return (it must be reset each time too)
+    timeout.tv_sec = 0;
+    timeout.tv_usec = 0;
+
+    // Use select() as it can poll a blocking socket without blocking the program
+    events_count = select(sockfd + 1, &fds, NULL, NULL, &timeout);
+    if (events_count == -1)
+    {
+        printf("[%s:%d] Error : select() failed (%s).\n", __FUNCTION__, __LINE__, strerror(errno));
+        return 0;
+    }
+
+    // No client attempted to connect
+    if (events_count == 0) return 0;
 
     cli_fd = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen);
     if(cli_fd == -1)
