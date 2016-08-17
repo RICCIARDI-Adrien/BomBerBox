@@ -59,4 +59,9 @@ int GameLoop(void);
  */
 int GameDropBomb(int Row, int Column, int Explosion_Range, TGamePlayer *Pointer_Owner_Player);
 
+/** Remove from the game a player that disconnected when the server tried to write to him.
+ * @param Pointer_Player The player that must be removed.
+ */
+void GameRemoveDisconnectedPlayer(TGamePlayer *Pointer_Player);
+
 #endif

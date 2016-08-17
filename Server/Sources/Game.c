@@ -268,14 +268,7 @@ static inline void GameProcessEvents(TGamePlayer *Pointer_Player, TNetworkEvent 
 			break;
 		
 		case NETWORK_EVENT_DISCONNECT:
-			// Consider the player as dead
-			GameSetPlayerDead(Pointer_Player);
-			
-			// Remove the player tile from the map
-			for (i = 0; i < Game_Players_Count; i++) NetworkSendCommandDrawTile(&Game_Players[i], GAME_TILE_ID_EMPTY, Pointer_Player->Row, Pointer_Player->Column);
-			
-			Game_Connected_Players_Count--;
-			printf("%s leaved.\n", Pointer_Player->String_Name);
+			GameRemoveDisconnectedPlayer(Pointer_Player);
 			break;
 			
 		default:
@@ -633,4 +626,22 @@ int GameDropBomb(int Row, int Column, int Explosion_Range, TGamePlayer *Pointer_
 	}
 	
 	return 0;
+}
+
+void GameRemoveDisconnectedPlayer(TGamePlayer *Pointer_Player)
+{
+	int i;
+	
+	// Consider the player as dead
+	GameSetPlayerDead(Pointer_Player);
+	
+	// Close the connection
+	close(Pointer_Player->Socket);
+	Pointer_Player->Socket = -1; // Tell the Network functions to ignore this client
+	
+	// Remove the player tile from the map
+	for (i = 0; i < Game_Players_Count; i++) NetworkSendCommandDrawTile(&Game_Players[i], GAME_TILE_ID_EMPTY, Pointer_Player->Row, Pointer_Player->Column);
+			
+	Game_Connected_Players_Count--;
+	printf("%s leaved.\n", Pointer_Player->String_Name);
 }

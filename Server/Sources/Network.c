@@ -9,6 +9,7 @@
 #include <Game.h>
 #include <netinet/in.h>
 #include <Network.h>
+#include <signal.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/socket.h>
@@ -34,12 +35,19 @@ typedef enum
 static int Network_Server_Socket;
 
 //-------------------------------------------------------------------------------------------------
+// Private functions
+//-------------------------------------------------------------------------------------------------
+/** Ignore SIGPIPE signal (sent when the server wants to write to a disconnected client). */
+static void NetworkSignalHandler(int __attribute__((unused)) Signal_ID) {}
+
+//-------------------------------------------------------------------------------------------------
 // Public functions
 //-------------------------------------------------------------------------------------------------
 int NetworkCreateServer(char *String_IP_Address, unsigned short Port)
 {
 	struct sockaddr_in Address;
 	int Option_Value = 1;
+	struct sigaction Signal_Action;
 	
 	// Try to create the socket
 	Network_Server_Socket = socket(AF_INET, SOCK_STREAM, 0);
@@ -71,6 +79,18 @@ int NetworkCreateServer(char *String_IP_Address, unsigned short Port)
 	if (listen(Network_Server_Socket, CONFIGURATION_MAXIMUM_PLAYERS_COUNT) == -1)
 	{
 		printf("[%s:%d] Error : listen() failed (%s).\n", __FUNCTION__, __LINE__, strerror(errno));
+		close(Network_Server_Socket);
+		return 1;
+	}
+	
+	// Catch the SIGPIPE signal, sent when the server writes to a disconnected client
+	Signal_Action.sa_handler = NetworkSignalHandler;
+	sigemptyset(&Signal_Action.sa_mask);
+	Signal_Action.sa_flags = 0;
+	Signal_Action.sa_restorer = NULL;
+	if (sigaction(SIGPIPE, &Signal_Action, NULL) == -1)
+	{
+		printf("[%s:%d] Error : failed to register the signal handler (%s).\n", __FUNCTION__, __LINE__, strerror(errno));
 		close(Network_Server_Socket);
 		return 1;
 	}
@@ -193,6 +213,7 @@ int NetworkGetEvent(TGamePlayer *Pointer_Player, TNetworkEvent *Pointer_Event)
 
 int NetworkSendCommandDrawTile(TGamePlayer *Pointer_Player, int Tile_ID, int Row, int Column)
 {
+	int Result;
 	unsigned char Command_Data[4];
 	
 	// Ignore disconnected players
@@ -205,7 +226,9 @@ int NetworkSendCommandDrawTile(TGamePlayer *Pointer_Player, int Tile_ID, int Row
 	Command_Data[3] = (unsigned char) Column;
 	
 	// Send the command
-	if (write(Pointer_Player->Socket, Command_Data, sizeof(Command_Data)) != sizeof(Command_Data))
+	Result = write(Pointer_Player->Socket, Command_Data, sizeof(Command_Data));
+	if ((Result == -1) && (errno == EPIPE)) GameRemoveDisconnectedPlayer(Pointer_Player);
+	else if (Result != sizeof(Command_Data))
 	{
 		printf("[%s:%d] Error : failed to send the 'draw tile' command (%s).\n", __FUNCTION__, __LINE__, strerror(errno));
 		return 1;
@@ -217,7 +240,7 @@ int NetworkSendCommandDrawTile(TGamePlayer *Pointer_Player, int Tile_ID, int Row
 int NetworkSendCommandDrawText(TGamePlayer *Pointer_Player, char *String_Text)
 {
 	unsigned char Command_Data[2 + CONFIGURATION_COMMAND_DRAW_TEXT_MESSAGE_MAXIMUM_SIZE];
-	int Text_Size, Command_Size;
+	int Text_Size, Command_Size, Result;
 	
 	// Ignore disconnected players
 	if (Pointer_Player->Socket == -1) return 0;
@@ -231,7 +254,9 @@ int NetworkSendCommandDrawText(TGamePlayer *Pointer_Player, char *String_Text)
 	
 	// Send the command
 	Command_Size = 2 + Text_Size; // Compute the command total size in bytes
-	if (write(Pointer_Player->Socket, Command_Data, Command_Size) != Command_Size)
+	Result = write(Pointer_Player->Socket, Command_Data, Command_Size);
+	if ((Result == -1) && (errno == EPIPE)) GameRemoveDisconnectedPlayer(Pointer_Player);
+	else if (Result != Command_Size)
 	{
 		printf("[%s:%d] Error : failed to send the 'draw text' command (%s).\n", __FUNCTION__, __LINE__, strerror(errno));
 		return 1;
