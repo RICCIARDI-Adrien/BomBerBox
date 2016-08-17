@@ -48,9 +48,7 @@ static inline void GameWaitForPlayersConnection(void)
 		if (Game_Players_Count < CONFIGURATION_MAXIMUM_PLAYERS_COUNT)
 		{
 			// Did a new player attempted connection ?
-			if (NetworkCheckPlayerConnection(&Game_Players[Game_Players_Count].Socket, Game_Players[Game_Players_Count].String_Name) != 0) printf("[%s:%d] Error : client #%d failed to connect.\n", __FUNCTION__, __LINE__, Game_Players_Count + 1);
-			// The socket value is different from -1 if a player connected, otherwise no player attempted to connect
-			if (Game_Players[Game_Players_Count].Socket != -1)
+			if (NetworkIsPlayerConnected(&Game_Players[Game_Players_Count].Socket, Game_Players[Game_Players_Count].String_Name))
 			{
 				NetworkSendCommandDrawText(&Game_Players[Game_Players_Count], "Hit Space when all players are ready.");
 				printf("Client #%d connected, name : %s.\n", Game_Players_Count + 1, Game_Players[Game_Players_Count].String_Name);

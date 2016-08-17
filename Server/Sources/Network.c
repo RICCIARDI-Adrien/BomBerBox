@@ -78,7 +78,7 @@ int NetworkCreateServer(char *String_IP_Address, unsigned short Port)
 	return 0;
 }
 
-int NetworkCheckPlayerConnection(int *Pointer_Player_Socket, char *String_Player_Name)
+int NetworkIsPlayerConnected(int *Pointer_Player_Socket, char *String_Player_Name)
 {
 	int Events_Count;
 	fd_set File_Descriptors_Set;
@@ -98,22 +98,18 @@ int NetworkCheckPlayerConnection(int *Pointer_Player_Socket, char *String_Player
 	if (Events_Count == -1)
 	{
 		printf("[%s:%d] Error : select() failed (%s).\n", __FUNCTION__, __LINE__, strerror(errno));
-		return 1;
+		return 0;
 	}
 	
 	// No client attempted to connect
-	if (Events_Count == 0)
-	{
-		*Pointer_Player_Socket = -1;
-		return 0;
-	}
+	if (Events_Count == 0) return 0;
 	
 	// Try to connect the client
 	*Pointer_Player_Socket = accept(Network_Server_Socket, NULL, NULL);
 	if (*Pointer_Player_Socket == -1)
 	{
 		printf("[%s:%d] Error : connect() failed (%s).\n", __FUNCTION__, __LINE__, strerror(errno));
-		return 1;
+		return 0;
 	}
 	
 	// Retrieve the client name
@@ -123,7 +119,7 @@ int NetworkCheckPlayerConnection(int *Pointer_Player_Socket, char *String_Player
 		if (read(*Pointer_Player_Socket, &Command_Code, 1) != 1)
 		{
 			printf("[%s:%d] Error : failed to read the player name command code (%s).\n", __FUNCTION__, __LINE__, strerror(errno));
-			return 1;
+			return 0;
 		}
 	} while (Command_Code != NETWORK_COMMAND_CONNECT_TO_SERVER);
 	
@@ -131,11 +127,11 @@ int NetworkCheckPlayerConnection(int *Pointer_Player_Socket, char *String_Player
 	if (read(*Pointer_Player_Socket, String_Player_Name, CONFIGURATION_MAXIMUM_PLAYER_NAME_LENGTH - 1) < 1)
 	{
 		printf("[%s:%d] Error : failed to read the player name (%s).\n", __FUNCTION__, __LINE__, strerror(errno));
-		return 1;
+		return 0;
 	}
 	String_Player_Name[CONFIGURATION_MAXIMUM_PLAYER_NAME_LENGTH - 1] = 0; // Force a terminating zero
 		
-	return 0;
+	return 1;
 }
 
 int NetworkGetEvent(TGamePlayer *Pointer_Player, TNetworkEvent *Pointer_Event)
