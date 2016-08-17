@@ -160,8 +160,8 @@ static inline int GameIsPlayerMoveAllowed(TGamePlayer *Pointer_Player, TMapCellC
 	// The player can't cross a bomb
 	if (Destination_Cell_Content == MAP_CELL_CONTENT_BOMB) return 0;
 	
-	// Is the player in ghost mode ?
-	if ((Destination_Cell_Content == MAP_CELL_CONTENT_DESTRUCTIBLE_OBSTACLE) && (!Pointer_Player->Is_Ghost_Mode_Enabled)) return 0;
+	// The player can't cross a destructible obstacle
+	if (Destination_Cell_Content == MAP_CELL_CONTENT_DESTRUCTIBLE_OBSTACLE) return 0;
 
 	return 1;
 }
