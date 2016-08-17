@@ -26,10 +26,20 @@ var tile_img = {
     GAME_TILE_BOMB : "sprites/bomb.png",
     GAME_TILE_EXPLOSION : "sprites/flame.png",
     GAME_TILE_ITEM_GHOST : "",
-    GAME_TILE_ITEM_SHIELD : "",
-    GAME_TILE_ITEM_POWER_UP_BOMB_RANGE : "",
-    GAME_TILE_ITEM_POWER_UP_BOMBS_COUNT : ""
+    GAME_TILE_ITEM_SHIELD : "sprites/item_shield.png",
+    GAME_TILE_ITEM_POWER_UP_BOMB_RANGE : "sprites/item_flame_powerup.png",
+    GAME_TILE_ITEM_POWER_UP_BOMBS_COUNT : "sprites/item_bomb_powerup.png"
 
+};
+
+/* Keyboard input value */
+var kbd = {
+    UP : 0x1,
+    DOWN : 0x2,
+    LEFT : 0x3,
+    RIGHT : 0x4,
+    SPACE : 0x5,
+    ESCAPE : 0x6,
 };
 
 window.onload = function() {
@@ -46,6 +56,7 @@ window.onload = function() {
         return;
     }
 
+    document.addEventListener('keydown', keyboard_event);
 }
 
 function bbb_console_log(str) {
@@ -54,14 +65,51 @@ function bbb_console_log(str) {
     textarea.scrollTop = textarea.scrollHeight;
 }
 
-function canvas_print_tile(tid, x, y)
-{
+function canvas_print_tile(tid, x, y) {
     var img = new Image();
     img.src = tile_img[Object.keys(tile_img)[tid]];
+    console.log(img.src + "x=" + x +" y=" + y);
 
     img.onload = function() {
         ctx.drawImage(img, x, y);
     };
+}
+
+function send_kbd_msg(code) {
+    if (typeof ws != 'undefined') {
+        if(ws.readyState == ws.OPEN) {
+            var command = String.fromCharCode(command_type.NW_COMMAND_INPUT);
+            ws.send(command + String.fromCharCode(code) + '\0');
+        }
+    }
+}
+
+function keyboard_event(event) {
+    if(event.keyCode == 37) {
+        // Left was pressed
+        send_kbd_msg(kbd.LEFT);
+    }
+    else if(event.keyCode == 38) {
+        // Up was pressed
+        send_kbd_msg(kbd.UP);
+    }
+    else if(event.keyCode == 39) {
+        // Right was pressed
+        send_kbd_msg(kbd.RIGHT);
+    }
+    else if(event.keyCode == 40) {
+        // Down was pressed
+        send_kbd_msg(kbd.DOWN);
+    }
+    else if(event.keyCode == 27) {
+        // Escape was pressed
+        send_kbd_msg(kbd.ESCAPE);
+    }
+    else if(event.keyCode == 32) {
+        // Space was pressed
+        send_kbd_msg(kbd.SPACE);
+    }
+
 }
 
 function server_connect() {
@@ -93,6 +141,7 @@ function server_connect() {
                 canvas_print_tile(tid, x, y);
             } else {
                 // Bad message: check next byte
+                console.log("bad msg!");
                 i++;
             }
         } while (i < evt.data.length);
