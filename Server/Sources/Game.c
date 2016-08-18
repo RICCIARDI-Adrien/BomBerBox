@@ -278,7 +278,7 @@ static inline void GameProcessEvents(TGamePlayer *Pointer_Player, TNetworkEvent 
 			if (GameDropBomb(Pointer_Player->Row, Pointer_Player->Column, Pointer_Player->Explosion_Range, Pointer_Player) != 0) return;
 			
 			// Display the bomb
-			for (i = 0; i < Game_Players_Count; i++) NetworkSendCommandDrawTile(&Game_Players[i], GAME_TILE_BOMB, Pointer_Player->Row, Pointer_Player->Column);
+			GameDisplayTile(GAME_TILE_BOMB, Pointer_Player->Row, Pointer_Player->Column);
 			// Redraw the player on top of the bomb
 			GameDisplayPlayer(Pointer_Player);
 			
@@ -305,7 +305,7 @@ static inline void GameProcessEvents(TGamePlayer *Pointer_Player, TNetworkEvent 
 		{
 			GameSetPlayerDead(Pointer_Player);
 			// Remove the player trace from all clients
-			for (i = 0; i < Game_Players_Count; i++) NetworkSendCommandDrawTile(&Game_Players[i], GAME_TILE_ID_EMPTY, Player_Previous_Row, Player_Previous_Column);
+			GameDisplayTile(GAME_TILE_ID_EMPTY, Player_Previous_Row, Player_Previous_Column);
 			return;
 		}
 		
@@ -333,13 +333,10 @@ static inline void GameProcessEvents(TGamePlayer *Pointer_Player, TNetworkEvent 
 		}
 		
 		// Tell all clients to erase the player trace (previous trace must always be erased because some player tile is thinner than other and superposition is visible)
-		for (i = 0; i < Game_Players_Count; i++) NetworkSendCommandDrawTile(&Game_Players[i], GAME_TILE_ID_EMPTY, Player_Previous_Row, Player_Previous_Column);
+		GameDisplayTile(GAME_TILE_ID_EMPTY, Player_Previous_Row, Player_Previous_Column);
 		
 		// Display a bomb if there was one here
-		if (Map[Player_Previous_Row][Player_Previous_Column].Content == MAP_CELL_CONTENT_BOMB)
-		{
-			for (i = 0; i < Game_Players_Count; i++) NetworkSendCommandDrawTile(&Game_Players[i], GAME_TILE_BOMB, Player_Previous_Row, Player_Previous_Column);
-		}
+		if (Map[Player_Previous_Row][Player_Previous_Column].Content == MAP_CELL_CONTENT_BOMB) GameDisplayTile(GAME_TILE_BOMB, Player_Previous_Row, Player_Previous_Column);
 		
 		// Display other players if they were here too
 		for (i = 0; i < Game_Players_Count; i++)
@@ -427,7 +424,7 @@ static inline void GameHandleBombs(void)
 			}
 			
 			// Tell all clients to display the sprite
-			for (i = 0; i < Game_Players_Count; i++) NetworkSendCommandDrawTile(&Game_Players[i], Tile_ID, Row, Column);
+			GameDisplayTile(Tile_ID, Row, Column);
 			
 			// Check if a player protected by a shield was on this cell when the explosion is terminated
 			if (Pointer_Cell->Explosion_State == MAP_EXPLOSION_STATE_NO_BOMB) // The bomb just finished to explode
@@ -688,8 +685,6 @@ int GameDropBomb(int Row, int Column, int Explosion_Range, TGamePlayer *Pointer_
 
 void GameRemoveDisconnectedPlayer(TGamePlayer *Pointer_Player)
 {
-	int i;
-	
 	// Close the connection first to avoid sending data to the non-existing client
 	close(Pointer_Player->Socket);
 	Pointer_Player->Socket = -1; // Tell the Network functions to ignore this client
@@ -698,7 +693,7 @@ void GameRemoveDisconnectedPlayer(TGamePlayer *Pointer_Player)
 	GameSetPlayerDead(Pointer_Player);
 	
 	// Remove the player tile from the map
-	for (i = 0; i < Game_Players_Count; i++) NetworkSendCommandDrawTile(&Game_Players[i], GAME_TILE_ID_EMPTY, Pointer_Player->Row, Pointer_Player->Column);
+	GameDisplayTile(GAME_TILE_ID_EMPTY, Pointer_Player->Row, Pointer_Player->Column);
 			
 	Game_Connected_Players_Count--;
 	printf("%s leaved.\n", Pointer_Player->String_Name);
