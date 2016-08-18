@@ -121,6 +121,18 @@ static inline void GameDisplayPlayer(TGamePlayer *Pointer_Player)
 	}
 }
 
+/** Send the tile to all players.
+ * @param Tile_ID The tile to send.
+ * @param Row The map Y cell coordinate where to display the tile.
+ * @param Column The map X cell coordinate where to display the tile.
+ */
+static inline void GameDisplayTile(TGameTileID Tile_ID, int Row, int Column)
+{
+	int i;
+	
+	for (i = 0; i < Game_Players_Count; i++) NetworkSendCommandDrawTile(&Game_Players[i], Tile_ID, Row, Column);
+}
+
 /** Put all players on a different spawn point. */
 static inline void GameSpawnPlayers(void)
 {
@@ -435,10 +447,24 @@ static inline void GameHandleBombs(void)
 static inline void GameHandleShields(void)
 {
 	int i;
+	TGamePlayer *Pointer_Player;
 	
 	for (i = 0; i < Game_Players_Count; i++)
 	{
-		if (Game_Players[i].Shield_Timer > 0) Game_Players[i].Shield_Timer--;
+		// Cache the player address
+		Pointer_Player = &Game_Players[i];
+		
+		if (Pointer_Player->Shield_Timer > 0)
+		{
+			Pointer_Player->Shield_Timer--;
+			
+			// Remove the player shield if it timed out (the tile must be refreshed if the player does not move)
+			if (Pointer_Player->Shield_Timer == 0)
+			{
+				GameDisplayTile(GAME_TILE_ID_EMPTY, Pointer_Player->Row, Pointer_Player->Column);
+				GameDisplayPlayer(Pointer_Player);
+			}
+		}
 	}
 }
 
