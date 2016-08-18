@@ -115,6 +115,9 @@ static inline void GameDisplayPlayer(TGamePlayer *Pointer_Player)
 		else Tile_ID = GAME_TILE_ID_OTHER_PLAYER;
 	
 		NetworkSendCommandDrawTile(&Game_Players[i], Tile_ID, Pointer_Player->Row, Pointer_Player->Column);
+		
+		// Display the shield on top of the player
+		if (Pointer_Player->Shield_Timer > 0) NetworkSendCommandDrawTile(&Game_Players[i], GAME_TILE_SHIELD_OVERLAY, Pointer_Player->Row, Pointer_Player->Column);
 	}
 }
 
@@ -142,6 +145,9 @@ static inline void GameSpawnPlayers(void)
 		// Initialize bombs
 		Game_Players[i].Bombs_Count = 1;
 		Game_Players[i].Explosion_Range = 2; // Take into account the explosion center too
+		
+		// Initialize shield
+		Game_Players[i].Shield_Timer = 0;
 		
 		// Tell the clients to display the player
 		GameDisplayPlayer(&Game_Players[i]);
@@ -283,7 +289,7 @@ static inline void GameProcessEvents(TGamePlayer *Pointer_Player, TNetworkEvent 
 		Pointer_Cell = &Map[Pointer_Player->Row][Pointer_Player->Column];
 		
 		// Is the cell exploding ?
-		if (Pointer_Cell->Explosion_State == MAP_EXPLOSION_STATE_REMOVE_EXPLOSION_TILE)
+		if ((Pointer_Cell->Explosion_State == MAP_EXPLOSION_STATE_REMOVE_EXPLOSION_TILE) && (Pointer_Player->Shield_Timer == 0))
 		{
 			GameSetPlayerDead(Pointer_Player);
 			// Remove the player trace from all clients
@@ -295,7 +301,7 @@ static inline void GameProcessEvents(TGamePlayer *Pointer_Player, TNetworkEvent 
 		switch (Cell_Content)
 		{
 			case MAP_CELL_CONTENT_ITEM_SHIELD:
-				// TODO
+				Pointer_Player->Shield_Timer = CONFIGURATION_SHIELD_DURATION_TIME;
 				Pointer_Cell->Content = MAP_CELL_CONTENT_EMPTY;
 				break;
 				
@@ -338,7 +344,9 @@ static inline void GameProcessEvents(TGamePlayer *Pointer_Player, TNetworkEvent 
 	}
 }
 
-/** Browse the map to find which cells must explode. */
+/** Browse the map to find which cells must explode.
+ * @note The function must be called exactly at each game tick.
+ */
 static inline void GameHandleBombs(void)
 {
 	int Row, Column, i;
@@ -375,7 +383,7 @@ static inline void GameHandleBombs(void)
 				// Is there one or more player(s) on this cell ?
 				for (i = 0; i < Game_Players_Count; i++)
 				{
-					if ((Game_Players[i].Row == Row) && (Game_Players[i].Column == Column)) GameSetPlayerDead(&Game_Players[i]);
+					if ((Game_Players[i].Row == Row) && (Game_Players[i].Column == Column) && (Game_Players[i].Shield_Timer == 0)) GameSetPlayerDead(&Game_Players[i]);
 				}
 			}
 			// The explosion has just finished
@@ -408,7 +416,29 @@ static inline void GameHandleBombs(void)
 			
 			// Tell all clients to display the sprite
 			for (i = 0; i < Game_Players_Count; i++) NetworkSendCommandDrawTile(&Game_Players[i], Tile_ID, Row, Column);
+			
+			// Check if a player protected by a shield was on this cell when the explosion is terminated
+			if (Pointer_Cell->Explosion_State == MAP_EXPLOSION_STATE_NO_BOMB) // The bomb just finished to explode
+			{
+				for (i = 0; i < Game_Players_Count; i++)
+				{
+					if ((Game_Players[i].Is_Alive) && (Game_Players[i].Row == Row) && (Game_Players[i].Column == Column) && (Game_Players[i].Shield_Timer > 0)) GameDisplayPlayer(&Game_Players[i]); // Display all players in connection order
+				}
+			}
 		}
+	}
+}
+
+/** Handle all player shields.
+ * @note The function must be called exactly at each game tick.
+ */
+static inline void GameHandleShields(void)
+{
+	int i;
+	
+	for (i = 0; i < Game_Players_Count; i++)
+	{
+		if (Game_Players[i].Shield_Timer > 0) Game_Players[i].Shield_Timer--;
 	}
 }
 
@@ -488,6 +518,8 @@ int GameLoop(void)
 			
 			// Handle bombs now that players may have moved to grant them more chances of survival
 			GameHandleBombs();
+			
+			GameHandleShields();
 			
 			// Exit game if there is only one (or zero) player remaining
 			if (Game_Connected_Players_Count < 2) break;

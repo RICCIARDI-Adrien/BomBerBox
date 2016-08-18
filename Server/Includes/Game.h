@@ -21,7 +21,7 @@ typedef struct
 	int Bombs_Count; //!< Tell how many bombs the player can carry.
 	int Explosion_Range; //!< How many cells an explosion can reach.
 	int Is_Alive; //!< Tell if the player is alive or not.
-	// TODO bonus items
+	int Shield_Timer; //!< The player is protected by a shield when this value is greater than zero. The shield is removed when the value falls to zero.
 } TGamePlayer;
 
 /** All available tiles. */
@@ -34,7 +34,7 @@ typedef enum
 	GAME_TILE_ID_OTHER_PLAYER,
 	GAME_TILE_BOMB,
 	GAME_TILE_EXPLOSION,
-	GAME_TILE_ITEM_GHOST, // Not used
+	GAME_TILE_SHIELD_OVERLAY,
 	GAME_TILE_ITEM_SHIELD,
 	GAME_TILE_ITEM_POWER_UP_BOMB_RANGE,
 	GAME_TILE_ITEM_POWER_UP_BOMBS_COUNT

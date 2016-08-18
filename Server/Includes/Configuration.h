@@ -36,6 +36,9 @@
 /** How long should an explosion tile be displayed (in tick unit). */
 #define CONFIGURATION_BOMB_EXPLOSION_PROPAGATION_TIME (250000000L / CONFIGURATION_GAME_TICK)
 
+/** How long a shield is active (in tick units). */
+#define CONFIGURATION_SHIELD_DURATION_TIME (5000000000L / CONFIGURATION_GAME_TICK)
+
 /** How many time to wait between a game end and a new one. */
 #define CONFIGURATION_SECONDS_BETWEEN_NEXT_ROUND 5
 
