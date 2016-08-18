@@ -141,9 +141,10 @@ int ui_init(void)
 //--------------------------------------------------------------------
 int ui_text(char * str)
 {
+    SDL_Surface * back;
     SDL_Rect text_location;
     SDL_Color text_foreground = { 255, 255, 255 };
-    SDL_Color text_background = { 0, 0, 255 };
+    SDL_Color text_background = { 0, 0, 0 };
 
     // sanity check
     if ( ! str ) {
@@ -151,13 +152,18 @@ int ui_text(char * str)
         return -1;
     }
 
+    text_location.x = 10;
+    text_location.y = 600;
+
     if ( ctx->text_surface ) {
-        fprintf(stderr, "clean previous text\n");
+        back = SDL_CreateRGBSurface(0, 600, 30, 32, 0, 0, 0, 0);
+        SDL_FillRect(back, NULL, SDL_MapRGB(back->format, 0, 0, 0));
+        SDL_BlitSurface(back, NULL, ctx->screen, &text_location);
+
+        SDL_FreeSurface(back);
         SDL_FreeSurface(ctx->text_surface);
     }
 
-    text_location.x = 50;
-    text_location.y = 600;
     ctx->text_surface = TTF_RenderText_Shaded(ctx->text_font, str,
                             text_foreground, text_background);
 
@@ -230,6 +236,9 @@ int ui_event(ui_event_t * event)
         }
         
         return 1;
+    } else if (sdl_event.type == SDL_QUIT ) {
+        event->type = UI_EVENT_WINDOW;
+        event->value = UI_WINDOW_ESCAPE;
     }
 
     return 0;

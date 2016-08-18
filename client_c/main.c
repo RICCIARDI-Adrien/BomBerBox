@@ -63,10 +63,16 @@ int game_process(void)
             if ( event.type == UI_EVENT_KEYBOARD ) {
                 // process keyboard event
                 _game_keyboard_ingame(event.value);
+            } else if ( event.type == UI_EVENT_WINDOW ) {
+                if ( event.value == UI_WINDOW_ESCAPE ) {
+                    // TODO: currently dirty exit
+                    exit(1);
+                }
             }
         }
 
         // process server commands
+        memset(&action, 0,sizeof(nw_action_t));
         rc = nw_get_action(&action);
         if ( rc > 0 ) {
             if ( action.type == NW_ACTION_DISPLAY_TILE ) {

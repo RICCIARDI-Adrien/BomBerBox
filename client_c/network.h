@@ -1,3 +1,5 @@
+#define NW_ACTION_DATA_SIZE 254
+
 
 /** client command definition **/
 enum _nw_action_type {
@@ -9,7 +11,7 @@ typedef enum _nw_action_type nw_action_type_t;
 /** client message definition **/
 struct _nw_action {
     uint8_t type;
-    uint8_t data[254];      // TODO: must be an union
+    uint8_t data[NW_ACTION_DATA_SIZE];      // TODO: must be an union
 };
 
 typedef struct _nw_action nw_action_t;
