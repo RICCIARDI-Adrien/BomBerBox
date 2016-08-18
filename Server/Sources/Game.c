@@ -632,12 +632,12 @@ void GameRemoveDisconnectedPlayer(TGamePlayer *Pointer_Player)
 {
 	int i;
 	
-	// Consider the player as dead
-	GameSetPlayerDead(Pointer_Player);
-	
-	// Close the connection
+	// Close the connection first to avoid sending data to the non-existing client
 	close(Pointer_Player->Socket);
 	Pointer_Player->Socket = -1; // Tell the Network functions to ignore this client
+	
+	// Consider the player as dead
+	GameSetPlayerDead(Pointer_Player);
 	
 	// Remove the player tile from the map
 	for (i = 0; i < Game_Players_Count; i++) NetworkSendCommandDrawTile(&Game_Players[i], GAME_TILE_ID_EMPTY, Pointer_Player->Row, Pointer_Player->Column);

@@ -194,7 +194,7 @@ int NetworkGetEvent(TGamePlayer *Pointer_Player, TNetworkEvent *Pointer_Event)
 	// Get the command
 	if (read(Pointer_Player->Socket, Command_Data, sizeof(Command_Data)) != sizeof(Command_Data))
 	{
-		if (errno == 0) // The player disconnected
+		if ((errno == 0) || (errno == EBADF)) // The player disconnected
 		{
 			close(Pointer_Player->Socket);
 			Pointer_Player->Socket = -1;
