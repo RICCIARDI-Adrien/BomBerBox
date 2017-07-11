@@ -210,7 +210,7 @@ static inline void GameProcessEvents(TGamePlayer *Pointer_Player, TNetworkEvent 
 {
 	TMapCellContent Cell_Content;
 	TMapCell *Pointer_Cell;
-	int Has_Player_Moved = 0, Player_Previous_Row = 0, Player_Previous_Column = 0, i;
+	int Has_Player_Moved = 0, Player_Previous_Row = 0, Player_Previous_Column = 0, i, Is_Player_Destination_Cell_Empty = 0;
 	
 	switch (Event)
 	{
@@ -327,8 +327,9 @@ static inline void GameProcessEvents(TGamePlayer *Pointer_Player, TNetworkEvent 
 				Pointer_Cell->Content = MAP_CELL_CONTENT_EMPTY;
 				break;
 				
-			// This is not a retrievable item 
+			// This is not a retrievable item
 			default:
+				Is_Player_Destination_Cell_Empty = 1;
 				break;
 		}
 		
@@ -337,6 +338,9 @@ static inline void GameProcessEvents(TGamePlayer *Pointer_Player, TNetworkEvent 
 		
 		// Display a bomb if there was one here
 		if (Map[Player_Previous_Row][Player_Previous_Column].Content == MAP_CELL_CONTENT_BOMB) GameDisplayTile(GAME_TILE_BOMB, Player_Previous_Row, Player_Previous_Column);
+		
+		// Clear the cell the player is on if it contained an item in order to make this item disappear
+		if (!Is_Player_Destination_Cell_Empty) GameDisplayTile(GAME_TILE_ID_EMPTY, Pointer_Player->Row, Pointer_Player->Column);
 		
 		// Display other players if they were here too
 		for (i = 0; i < Game_Players_Count; i++)
