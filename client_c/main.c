@@ -94,19 +94,19 @@ int main(int argc, const char *argv[])
     int rc, fd;
 
     if ( argc < 4 ) {
-        fprintf(stderr, "usage");
+        fprintf(stderr, "usage : %s ip port name\n", argv[0]);
         exit(1);
     }
 
     rc = nw_connect(argv[1], argv[2]);
     if ( rc ) {
-        fprintf(stderr, "cannot connect to server %s:%d", argv[1], atoi(argv[2]));
+        fprintf(stderr, "cannot connect to server %s:%d\n", argv[1], atoi(argv[2]));
         exit(1);
     }
   
     rc = ui_init();
     if ( rc < 0 ) {
-        fprintf(stderr, "cannot init ui");
+        fprintf(stderr, "cannot init ui\n");
         exit(1);
     }
     
